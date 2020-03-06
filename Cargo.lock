@@ -692,7 +692,7 @@ dependencies = [
 
 [[package]]
 name = "ironoxide-cli"
-version = "0.3.0"
+version = "0.1.0"
 dependencies = [
  "frank_jwt",
  "futures",
