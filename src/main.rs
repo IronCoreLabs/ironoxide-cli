@@ -1,4 +1,5 @@
 use ironoxide::{
+    config::IronOxideConfig,
     group::{GroupCreateOpts, GroupId, GroupOps},
     user::{UserCreateResult, UserId, UserOps},
     DeviceContext, IronOxide, IronOxideErr,
@@ -201,7 +202,8 @@ async fn create_user_and_device(
         user_id,
     };
     let jwt = gen_jwt(&user_create);
-    let user_verify = IronOxide::user_verify(&jwt.0).await?;
+    let user_verify =
+        IronOxide::user_verify(&jwt.0, IronOxideConfig::default().sdk_operation_timeout).await?;
     if user_verify.is_some() {
         println!("Found user \"{}\"", &user_id.id());
     } else {
@@ -246,6 +248,7 @@ async fn gen_device(jwt: &Jwt, password: &Password) -> Result<DeviceContext> {
         &jwt.0,
         &password.0,
         &ironoxide::user::DeviceCreateOpts::default(),
+        IronOxideConfig::default().sdk_operation_timeout,
     )
     .await?
     .into())
@@ -256,6 +259,7 @@ async fn gen_user(jwt: &Jwt, password: &Password) -> Result<UserCreateResult> {
         &jwt.0,
         &password.0,
         &ironoxide::user::UserCreateOpts::default(),
+        IronOxideConfig::default().sdk_operation_timeout,
     )
     .await?)
 }

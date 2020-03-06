@@ -5,7 +5,7 @@ authors = ["Clint Frederickson <clint.frederickson@ironcorelabs.com>"]
 edition = "2018"
 
 [dependencies]
-ironoxide = "~0.18"
+ironoxide = "~0.19.1"
 frank_jwt = "~3.1" 
 serde = {version = "~1.0", features=["derive"]}
 serde_json = "~1.0"
