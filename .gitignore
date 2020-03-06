@@ -1,0 +1,4 @@
+/target
+/*.pem
+/*.json
+!/config.json
