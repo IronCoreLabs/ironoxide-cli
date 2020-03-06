@@ -5,7 +5,7 @@ Command-line interface for IronOxide functions to create users, devices, and gro
 ## Configuration
 
 To use the IronOxide CLI, you must first obtain an Identity Assertion Key file and a configuration file
-from the IronCore Labs Admin Console.
+from the [IronCore Labs Admin Console](www.admin.ironcorelabs.com).
 
 ### Identity Assertion Key File
 
@@ -46,13 +46,13 @@ It is used by running `ironoxide-cli`, followed by your desired subcommands and 
 You can see all the available subcommands by running `ironoxide-cli -h`.
 There are currently two subcommands available: `user-create` and `group-create`.
 
-### User-create
+### User/Device Creation
 
 The `user-create` subcommand is used to create a user in the IronCore service,
 generate a device for that user, and output the device context to a file.
 It requires the desired user's ID and password. The user's device context will be output to a file named "\<USER-ID\>.json".
 
-### Group-create
+### Group Creation
 
 The `group-create` subcommand is used to create multiple groups for the given user.
 As it requires the user's device context in a file named "\<USER-ID.json\>", it is typically run
