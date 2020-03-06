@@ -46,7 +46,7 @@ It is used by running `ironoxide-cli`, followed by your desired subcommands and 
 You can see all the available subcommands by running `ironoxide-cli -h`.
 There are currently two subcommands available: `user-create` and `group-create`.
 
-### User/Device Creation
+### User and Device Creation
 
 The `user-create` subcommand is used to create a user in the IronCore service,
 generate a device for that user, and output the device context to a file.
