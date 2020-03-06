@@ -5,7 +5,7 @@ Command-line interface for IronOxide functions to create users, devices, and gro
 ## Configuration
 
 To use the IronOxide CLI, you must first obtain an Identity Assertion Key file and a configuration file
-from the [IronCore Labs Admin Console](www.admin.ironcorelabs.com).
+from the [IronCore Labs Admin Console](https://admin.ironcorelabs.com).
 
 ### Identity Assertion Key File
 
