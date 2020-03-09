@@ -72,3 +72,11 @@ Generating group "employees" for user "ironadmin"
 Generating group "customers" for user "ironadmin"
 Generating group "others" for user "ironadmin"
 ```
+
+# License
+
+Recrypt-rust is licensed under the [GNU Affero General Public License](LICENSE).
+We also offer commercial licenses - [email](mailto:info@ironcorelabs.com) for more information.
+
+Copyright (c) 2018-present IronCore Labs, Inc.
+All rights reserved.
