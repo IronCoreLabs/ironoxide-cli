@@ -75,8 +75,8 @@ Generating group "others" for user "ironadmin"
 
 # License
 
-Recrypt-rust is licensed under the [GNU Affero General Public License](LICENSE).
+IronOxide CLI is licensed under the [GNU Affero General Public License](LICENSE).
 We also offer commercial licenses - [email](mailto:info@ironcorelabs.com) for more information.
 
-Copyright (c) 2018-present IronCore Labs, Inc.
+Copyright (c) 2020 IronCore Labs, Inc.
 All rights reserved.
