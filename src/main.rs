@@ -53,6 +53,26 @@ enum CommandLineArgs {
         #[structopt(required = true)]
         group_ids: Vec<String>,
     },
+    /// Adds the `new_members` to the  `group_id`. Note: requires the user's DeviceContext in the file "<user_id>.json".
+    GroupAddMembers {
+        /// UserId to use for adding members
+        #[structopt(short, long = "user")]
+        user_id: String,
+
+        /// group to add members to.
+        #[structopt(required = true)]
+        group_id: String,
+
+        /// Space-separated list of users to add to the group.
+        #[structopt(required = true)]
+        new_members: Vec<String>,
+    },
+    /// Creates groups for a given user. Note: requires the user's DeviceContext in the file "<user_id>.json".
+    GroupList {
+        /// UserId to act ass
+        #[structopt(short, long = "user")]
+        user_id: String,
+    },
 }
 
 #[tokio::main]
@@ -112,18 +132,7 @@ async fn main() -> Result<()> {
             user_id,
             group_ids: group_id_strings,
         } => {
-            let device_context_filename = format!("{}.json", user_id);
-            let device_context_path = PathBuf::from(&device_context_filename);
-            if !device_context_path.is_file() {
-                Err(InitAppErr(format!(
-                    "No DeviceContext found in \"{}\"",
-                    device_context_filename
-                )))?
-            }
-            let device_context_file = File::open(device_context_path)?;
-            let device_context: DeviceContext = serde_json::from_reader(device_context_file)?;
-            println!("Found DeviceContext in \"{}\"", device_context_filename);
-
+            let device_context = find_device_for_user(&user_id)?;
             let group_ids = group_id_strings
                 .iter()
                 .map(|group_id| GroupId::try_from(group_id.as_str()))
@@ -135,9 +144,64 @@ async fn main() -> Result<()> {
 
             futures::future::try_join_all(group_futures).await?;
         }
+
+        CommandLineArgs::GroupList { user_id } => {
+            let device_context = find_device_for_user(&user_id)?;
+            let sdk = ironoxide::initialize(&device_context, &Default::default()).await?;
+            let groups = sdk.group_list().await?;
+            let group_ids = groups
+                .result()
+                .iter()
+                .map(|meta_result| meta_result.id().id())
+                .collect::<Vec<_>>();
+            println!("Groups found: {:?}", group_ids)
+        }
+
+        CommandLineArgs::GroupAddMembers {
+            user_id,
+            group_id,
+            new_members,
+        } => {
+            let device_context = find_device_for_user(&user_id)?;
+            let sdk = ironoxide::initialize(&device_context, &Default::default()).await?;
+            let g_id = GroupId::try_from(group_id.as_str())?;
+            let m_ids_or_error: std::result::Result<Vec<_>, _> = new_members
+                .iter()
+                .map(|u| UserId::try_from(u.as_str()))
+                .collect();
+            let add_result = sdk.group_add_members(&g_id, &m_ids_or_error?).await?;
+            let successes = add_result
+                .succeeded()
+                .iter()
+                .map(|user| user.id())
+                .collect::<Vec<_>>();
+            let failures = add_result
+                .failed()
+                .iter()
+                .map(|err| (err.user().id(), err.error()))
+                .collect::<Vec<_>>();
+            println!("Successful adds: {:?}", successes);
+            println!("Failed adds: {:?}", failures);
+        }
     }
 
     Ok(())
+}
+
+fn find_device_for_user(user_id: &str) -> Result<DeviceContext> {
+    let device_context_filename = format!("{}.json", user_id);
+    let device_context_path = PathBuf::from(&device_context_filename);
+    if !device_context_path.is_file() {
+        Err(InitAppErr(format!(
+            "No DeviceContext found in \"{}\"",
+            device_context_filename
+        )))
+    } else {
+        let device_context_file = File::open(device_context_path)?;
+        let device_context: DeviceContext = serde_json::from_reader(device_context_file)?;
+        println!("Found DeviceContext in \"{}\"", device_context_filename);
+        Ok(device_context)
+    }
 }
 
 struct Jwt(String);
