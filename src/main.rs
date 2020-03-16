@@ -18,7 +18,7 @@ type Result<T> = std::result::Result<T, InitAppErr>;
 
 #[derive(StructOpt)]
 enum CommandLineArgs {
-    /// Generates and outputs the DeviceContext for a given user to the file "user_id.json".
+    /// Generates and outputs the DeviceContext for a given user to the file "<user_id>.json".
     UserCreate {
         #[structopt(
             parse(from_os_str),
@@ -31,7 +31,7 @@ enum CommandLineArgs {
         #[structopt(
             parse(from_os_str),
             default_value = "assertionKey.pem",
-            short = "i",
+            short,
             long = "iak"
         )]
         iak_file_path: PathBuf,
@@ -53,24 +53,24 @@ enum CommandLineArgs {
         #[structopt(required = true)]
         group_ids: Vec<String>,
     },
-    /// Adds the `new_members` to the  `group_id`. Note: requires the user's DeviceContext in the file "<user_id>.json".
+    /// Adds new members to a group. Note: requires the user's DeviceContext in the file "<user_id>.json".
     GroupAddMembers {
+        /// Space-separated list of users to add to the group
+        #[structopt(required = true)]
+        new_members: Vec<String>,
+
+        /// GroupId to add members to
+        #[structopt(short, long = "group")]
+        group_id: String,
+
         /// UserId to use for adding members
         #[structopt(short, long = "user")]
         user_id: String,
-
-        /// group to add members to.
-        #[structopt(required = true)]
-        group_id: String,
-
-        /// Space-separated list of users to add to the group.
-        #[structopt(required = true)]
-        new_members: Vec<String>,
     },
-    /// Creates groups for a given user. Note: requires the user's DeviceContext in the file "<user_id>.json".
+    /// Lists the groups the user is a member/admin of. Note: requires the user's DeviceContext in the file "<user_id>.json".
     GroupList {
-        /// UserId to act ass
-        #[structopt(short, long = "user")]
+        /// UserId to list groups for
+        #[structopt(required = true)]
         user_id: String,
     },
 }
@@ -82,7 +82,7 @@ async fn main() -> Result<()> {
         CommandLineArgs::UserCreate {
             iak_file_path,
             config_file_path,
-            user_id: user,
+            user_id: user_id_string,
             password,
         } => {
             if !iak_file_path.is_file() {
@@ -97,14 +97,13 @@ async fn main() -> Result<()> {
                     config_file_path.display()
                 )))?;
             }
-
             // this check is because the output filename can't have a '/' in it, not an actual restriction on UserIds
-            if user.contains('/') {
+            if user_id_string.contains('/') {
                 Err(InitAppErr(
                     "UserId cannot contain any of the following characters: /".to_string(),
                 ))?
             }
-            let user_id = UserId::try_from(user)?;
+            let user_id = UserId::try_from(user_id_string)?;
 
             let config_file = File::open(config_file_path)?;
             let config: InputConfig = serde_json::from_reader(config_file)?;
@@ -132,7 +131,7 @@ async fn main() -> Result<()> {
             user_id,
             group_ids: group_id_strings,
         } => {
-            let device_context = find_device_for_user(&user_id)?;
+            let sdk = initialize_sdk_from_file(&user_id).await?;
             let group_ids = group_id_strings
                 .iter()
                 .map(|group_id| GroupId::try_from(group_id.as_str()))
@@ -140,14 +139,13 @@ async fn main() -> Result<()> {
 
             let group_futures = group_ids
                 .iter()
-                .map(|group_id| create_group(&device_context, group_id));
+                .map(|group_id| create_group(&sdk, group_id));
 
             futures::future::try_join_all(group_futures).await?;
         }
 
         CommandLineArgs::GroupList { user_id } => {
-            let device_context = find_device_for_user(&user_id)?;
-            let sdk = ironoxide::initialize(&device_context, &Default::default()).await?;
+            let sdk = initialize_sdk_from_file(&user_id).await?;
             let groups = sdk.group_list().await?;
             let group_ids = groups
                 .result()
@@ -159,17 +157,16 @@ async fn main() -> Result<()> {
 
         CommandLineArgs::GroupAddMembers {
             user_id,
-            group_id,
-            new_members,
+            group_id: group_id_string,
+            new_members: member_id_strings,
         } => {
-            let device_context = find_device_for_user(&user_id)?;
-            let sdk = ironoxide::initialize(&device_context, &Default::default()).await?;
-            let g_id = GroupId::try_from(group_id.as_str())?;
-            let m_ids_or_error: std::result::Result<Vec<_>, _> = new_members
+            let sdk = initialize_sdk_from_file(&user_id).await?;
+            let group_id = GroupId::try_from(group_id_string)?;
+            let members_ids = member_id_strings
                 .iter()
                 .map(|u| UserId::try_from(u.as_str()))
-                .collect();
-            let add_result = sdk.group_add_members(&g_id, &m_ids_or_error?).await?;
+                .collect::<std::result::Result<Vec<_>, _>>()?;
+            let add_result = sdk.group_add_members(&group_id, &members_ids).await?;
             let successes = add_result
                 .succeeded()
                 .iter()
@@ -178,7 +175,7 @@ async fn main() -> Result<()> {
             let failures = add_result
                 .failed()
                 .iter()
-                .map(|err| (err.user().id(), err.error()))
+                .map(|err| format!("User: {}, Error: {}", err.user().id(), err.error()))
                 .collect::<Vec<_>>();
             println!("Successful adds: {:?}", successes);
             println!("Failed adds: {:?}", failures);
@@ -188,26 +185,26 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn find_device_for_user(user_id: &str) -> Result<DeviceContext> {
+async fn initialize_sdk_from_file(user_id: &str) -> Result<IronOxide> {
     let device_context_filename = format!("{}.json", user_id);
     let device_context_path = PathBuf::from(&device_context_filename);
-    if !device_context_path.is_file() {
+    if device_context_path.is_file() {
+        let device_context_file = File::open(device_context_path)?;
+        let device_context: DeviceContext = serde_json::from_reader(device_context_file)?;
+        println!("Found DeviceContext in \"{}\"", device_context_filename);
+        Ok(ironoxide::initialize(&device_context, &Default::default()).await?)
+    } else {
         Err(InitAppErr(format!(
             "No DeviceContext found in \"{}\"",
             device_context_filename
         )))
-    } else {
-        let device_context_file = File::open(device_context_path)?;
-        let device_context: DeviceContext = serde_json::from_reader(device_context_file)?;
-        println!("Found DeviceContext in \"{}\"", device_context_filename);
-        Ok(device_context)
     }
 }
 
 struct Jwt(String);
 struct Password(String);
 #[derive(Deserialize)]
-struct SegmentIdExt(String);
+struct SegmentId(String);
 #[derive(Deserialize)]
 struct ProjectId(usize);
 #[derive(Deserialize)]
@@ -217,7 +214,7 @@ struct IdentityAssertionKeyId(usize);
 #[serde(rename_all = "camelCase")]
 struct InputConfig {
     project_id: ProjectId,
-    segment_id: SegmentIdExt,
+    segment_id: SegmentId,
     identity_assertion_key_id: IdentityAssertionKeyId,
 }
 
@@ -278,8 +275,7 @@ async fn create_user_and_device(
     gen_device(&jwt, password).await
 }
 
-async fn create_group(device_context: &DeviceContext, group_id: &GroupId) -> Result<()> {
-    let sdk = ironoxide::initialize(device_context, &Default::default()).await?;
+async fn create_group(sdk: &IronOxide, group_id: &GroupId) -> Result<()> {
     let opts = GroupCreateOpts::new(
         Some(group_id.to_owned()),
         None,
@@ -294,14 +290,14 @@ async fn create_group(device_context: &DeviceContext, group_id: &GroupId) -> Res
     println!(
         "Generating group \"{}\" for user \"{}\"",
         group_id.id(),
-        device_context.account_id().id()
+        sdk.device().account_id().id()
     );
     Ok(())
 }
 
 struct UserCreate<'a> {
     project_id: &'a ProjectId,
-    seg_id: &'a SegmentIdExt,
+    seg_id: &'a SegmentId,
     iak: &'a IdentityAssertionKeyId,
     pem_file: &'a PathBuf,
     user_id: &'a UserId,
