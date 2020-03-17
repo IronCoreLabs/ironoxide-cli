@@ -1,3 +1,4 @@
+use ironoxide::group::GroupAccessEditResult;
 use ironoxide::{
     config::IronOxideConfig,
     group::{GroupCreateOpts, GroupId, GroupOps},
@@ -5,6 +6,8 @@ use ironoxide::{
     DeviceContext, IronOxide, IronOxideErr,
 };
 use serde::Deserialize;
+use std::future::Future;
+use std::pin::Pin;
 use std::{
     convert::TryFrom,
     fmt,
@@ -67,6 +70,20 @@ enum CommandLineArgs {
         #[structopt(short, long = "user")]
         user_id: String,
     },
+    /// Adds new admins to a group. Note: requires the user's DeviceContext in the file "<user_id>.json".
+    GroupAddAdmins {
+        /// Space-separated list of users to add to the group as admins
+        #[structopt(required = true)]
+        new_admins: Vec<String>,
+
+        /// GroupId to add admins to
+        #[structopt(short, long = "group")]
+        group_id: String,
+
+        /// UserId to use for adding admins
+        #[structopt(short, long = "user")]
+        user_id: String,
+    },
     /// Lists the groups the user is a member/admin of. Note: requires the user's DeviceContext in the file "<user_id>.json".
     GroupList {
         /// UserId to list groups for
@@ -126,7 +143,6 @@ async fn main() -> Result<()> {
                 format!("Outputting device context to \"{}.json\"", user_id.id())
             );
         }
-
         CommandLineArgs::GroupCreate {
             user_id,
             group_ids: group_id_strings,
@@ -143,18 +159,6 @@ async fn main() -> Result<()> {
 
             futures::future::try_join_all(group_futures).await?;
         }
-
-        CommandLineArgs::GroupList { user_id } => {
-            let sdk = initialize_sdk_from_file(&user_id).await?;
-            let groups = sdk.group_list().await?;
-            let group_ids = groups
-                .result()
-                .iter()
-                .map(|meta_result| meta_result.id().id())
-                .collect::<Vec<_>>();
-            println!("Groups found: {:?}", group_ids)
-        }
-
         CommandLineArgs::GroupAddMembers {
             user_id,
             group_id: group_id_string,
@@ -180,8 +184,52 @@ async fn main() -> Result<()> {
             println!("Successful adds: {:?}", successes);
             println!("Failed adds: {:?}", failures);
         }
+        CommandLineArgs::GroupAddAdmins {
+            user_id,
+            group_id: group_id_string,
+            new_admins: admin_id_strings,
+        } => {
+            let sdk = initialize_sdk_from_file(&user_id).await?;
+            add_members_or_admins(group_id_string, admin_id_strings, sdk.group_add_admins);
+        }
+        CommandLineArgs::GroupList { user_id } => {
+            let sdk = initialize_sdk_from_file(&user_id).await?;
+            let groups = sdk.group_list().await?;
+            let group_ids = groups
+                .result()
+                .iter()
+                .map(|meta_result| meta_result.id().id())
+                .collect::<Vec<_>>();
+            println!("Groups found: {:?}", group_ids)
+        }
     }
 
+    Ok(())
+}
+
+async fn add_members_or_admins(
+    group_id_string: String,
+    new_user_strings: Vec<String>,
+    f: fn(&GroupId, &Vec<UserId>) -> Pin<Box<dyn Future<Output = Result<GroupAccessEditResult>>>>,
+) -> Result<()> {
+    let group_id = GroupId::try_from(group_id_string)?;
+    let new_user_ids = new_user_strings
+        .iter()
+        .map(|u| UserId::try_from(u.as_str()))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    let add_result = f(&group_id, &new_user_ids).await?;
+    let successes = add_result
+        .succeeded()
+        .iter()
+        .map(|user| user.id())
+        .collect::<Vec<_>>();
+    let failures = add_result
+        .failed()
+        .iter()
+        .map(|err| format!("User: {}, Error: {}", err.user().id(), err.error()))
+        .collect::<Vec<_>>();
+    println!("Successful adds: {:?}", successes);
+    println!("Failed adds: {:?}", failures);
     Ok(())
 }
 
