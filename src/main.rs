@@ -1,4 +1,3 @@
-use ironoxide::group::GroupAccessEditResult;
 use ironoxide::{
     config::IronOxideConfig,
     group::{GroupCreateOpts, GroupId, GroupOps},
@@ -6,8 +5,6 @@ use ironoxide::{
     DeviceContext, IronOxide, IronOxideErr,
 };
 use serde::Deserialize;
-use std::future::Future;
-use std::pin::Pin;
 use std::{
     convert::TryFrom,
     fmt,
@@ -30,7 +27,6 @@ enum CommandLineArgs {
             long = "config"
         )]
         config_file_path: PathBuf,
-
         #[structopt(
             parse(from_os_str),
             default_value = "assertionKey.pem",
@@ -38,10 +34,8 @@ enum CommandLineArgs {
             long = "iak"
         )]
         iak_file_path: PathBuf,
-
         /// UserId to create and generate a device for
         user_id: String,
-
         /// Password for encrypting/decrypting the user's private key
         #[structopt(short, long)]
         password: String,
@@ -51,36 +45,55 @@ enum CommandLineArgs {
         /// UserId for the group owner
         #[structopt(short, long = "user")]
         user_id: String,
-
         /// Space-separated list of desired GroupIds
         #[structopt(required = true)]
         group_ids: Vec<String>,
     },
+    /// Adds new admins to a group. Note: requires the user's DeviceContext in the file "<user_id>.json".
+    GroupAddAdmins {
+        /// Space-separated list of users to add as group admins
+        #[structopt(required = true)]
+        new_admins: Vec<String>,
+        /// GroupId to add admins to
+        #[structopt(short, long = "group")]
+        group_id: String,
+        /// UserId to use for adding admins
+        #[structopt(short, long = "user")]
+        user_id: String,
+    },
+    /// Remove admins from a group. Note: requires the user's DeviceContext in the file "<user_id>.json".
+    GroupRemoveAdmins {
+        /// Space-separated list of users to remove as group admins
+        #[structopt(required = true)]
+        admins_to_remove: Vec<String>,
+        /// GroupId to remove admins from
+        #[structopt(short, long = "group")]
+        group_id: String,
+        /// UserId to use for removing admins
+        #[structopt(short, long = "user")]
+        user_id: String,
+    },
     /// Adds new members to a group. Note: requires the user's DeviceContext in the file "<user_id>.json".
     GroupAddMembers {
-        /// Space-separated list of users to add to the group
+        /// Space-separated list of users to add as group members
         #[structopt(required = true)]
         new_members: Vec<String>,
-
         /// GroupId to add members to
         #[structopt(short, long = "group")]
         group_id: String,
-
         /// UserId to use for adding members
         #[structopt(short, long = "user")]
         user_id: String,
     },
-    /// Adds new admins to a group. Note: requires the user's DeviceContext in the file "<user_id>.json".
-    GroupAddAdmins {
-        /// Space-separated list of users to add to the group as admins
+    /// Remove members from a group. Note: requires the user's DeviceContext in the file "<user_id>.json".
+    GroupRemoveMembers {
+        /// Space-separated list of users to remove as group members
         #[structopt(required = true)]
-        new_admins: Vec<String>,
-
-        /// GroupId to add admins to
+        members_to_remove: Vec<String>,
+        /// GroupId to remove members from
         #[structopt(short, long = "group")]
         group_id: String,
-
-        /// UserId to use for adding admins
+        /// UserId to use for removing members
         #[structopt(short, long = "user")]
         user_id: String,
     },
@@ -159,38 +172,61 @@ async fn main() -> Result<()> {
 
             futures::future::try_join_all(group_futures).await?;
         }
-        CommandLineArgs::GroupAddMembers {
-            user_id,
-            group_id: group_id_string,
-            new_members: member_id_strings,
-        } => {
-            let sdk = initialize_sdk_from_file(&user_id).await?;
-            let group_id = GroupId::try_from(group_id_string)?;
-            let members_ids = member_id_strings
-                .iter()
-                .map(|u| UserId::try_from(u.as_str()))
-                .collect::<std::result::Result<Vec<_>, _>>()?;
-            let add_result = sdk.group_add_members(&group_id, &members_ids).await?;
-            let successes = add_result
-                .succeeded()
-                .iter()
-                .map(|user| user.id())
-                .collect::<Vec<_>>();
-            let failures = add_result
-                .failed()
-                .iter()
-                .map(|err| format!("User: {}, Error: {}", err.user().id(), err.error()))
-                .collect::<Vec<_>>();
-            println!("Successful adds: {:?}", successes);
-            println!("Failed adds: {:?}", failures);
-        }
         CommandLineArgs::GroupAddAdmins {
-            user_id,
+            user_id: user_id_string,
             group_id: group_id_string,
-            new_admins: admin_id_strings,
+            new_admins: new_admin_strings,
         } => {
-            let sdk = initialize_sdk_from_file(&user_id).await?;
-            add_members_or_admins(group_id_string, admin_id_strings, sdk.group_add_admins);
+            println!("Adding admins to group \"{}\"", &group_id_string);
+            change_group_membership(
+                user_id_string,
+                group_id_string,
+                new_admin_strings,
+                GroupMembershipFunction::AddAdmins,
+            )
+            .await?;
+        }
+        CommandLineArgs::GroupRemoveAdmins {
+            user_id: user_id_string,
+            group_id: group_id_string,
+            admins_to_remove,
+        } => {
+            println!("Removing admins from group \"{}\"", &group_id_string);
+            change_group_membership(
+                user_id_string,
+                group_id_string,
+                admins_to_remove,
+                GroupMembershipFunction::RemoveAdmins,
+            )
+            .await?;
+        }
+        CommandLineArgs::GroupAddMembers {
+            user_id: user_id_string,
+            group_id: group_id_string,
+            new_members: new_member_strings,
+        } => {
+            println!("Adding members to group \"{}\"", &group_id_string);
+            change_group_membership(
+                user_id_string,
+                group_id_string,
+                new_member_strings,
+                GroupMembershipFunction::AddMembers,
+            )
+            .await?;
+        }
+        CommandLineArgs::GroupRemoveMembers {
+            user_id: user_id_string,
+            group_id: group_id_string,
+            members_to_remove,
+        } => {
+            println!("Removing members from group \"{}\"", &group_id_string);
+            change_group_membership(
+                user_id_string,
+                group_id_string,
+                members_to_remove,
+                GroupMembershipFunction::RemoveMembers,
+            )
+            .await?;
         }
         CommandLineArgs::GroupList { user_id } => {
             let sdk = initialize_sdk_from_file(&user_id).await?;
@@ -203,21 +239,35 @@ async fn main() -> Result<()> {
             println!("Groups found: {:?}", group_ids)
         }
     }
-
     Ok(())
 }
 
-async fn add_members_or_admins(
+enum GroupMembershipFunction {
+    AddMembers,
+    AddAdmins,
+    RemoveMembers,
+    RemoveAdmins,
+}
+
+async fn change_group_membership(
+    user_id_string: String,
     group_id_string: String,
-    new_user_strings: Vec<String>,
-    f: fn(&GroupId, &Vec<UserId>) -> Pin<Box<dyn Future<Output = Result<GroupAccessEditResult>>>>,
+    user_strings: Vec<String>,
+    membership_function: GroupMembershipFunction,
 ) -> Result<()> {
+    let sdk = initialize_sdk_from_file(&user_id_string).await?;
     let group_id = GroupId::try_from(group_id_string)?;
-    let new_user_ids = new_user_strings
+    let user_ids = user_strings
         .iter()
         .map(|u| UserId::try_from(u.as_str()))
         .collect::<std::result::Result<Vec<_>, _>>()?;
-    let add_result = f(&group_id, &new_user_ids).await?;
+    let add_result = match membership_function {
+        GroupMembershipFunction::AddAdmins => sdk.group_add_admins(&group_id, &user_ids),
+        GroupMembershipFunction::RemoveAdmins => sdk.group_remove_admins(&group_id, &user_ids),
+        GroupMembershipFunction::AddMembers => sdk.group_add_members(&group_id, &user_ids),
+        GroupMembershipFunction::RemoveMembers => sdk.group_remove_members(&group_id, &user_ids),
+    }
+    .await?;
     let successes = add_result
         .succeeded()
         .iter()
@@ -228,8 +278,8 @@ async fn add_members_or_admins(
         .iter()
         .map(|err| format!("User: {}, Error: {}", err.user().id(), err.error()))
         .collect::<Vec<_>>();
-    println!("Successful adds: {:?}", successes);
-    println!("Failed adds: {:?}", failures);
+    println!("Successes: {:?}", successes);
+    println!("Failures: {:?}", failures);
     Ok(())
 }
 
