@@ -178,11 +178,11 @@ async fn main() -> Result<()> {
             new_admins: new_admin_strings,
         } => {
             println!("Adding admins to group \"{}\"", &group_id_string);
-            change_group_membership(
+            modify_group(
                 user_id_string,
                 group_id_string,
                 new_admin_strings,
-                GroupMembershipFunction::AddAdmins,
+                GroupModificationFunction::AddAdmins,
             )
             .await?;
         }
@@ -192,11 +192,11 @@ async fn main() -> Result<()> {
             admins_to_remove,
         } => {
             println!("Removing admins from group \"{}\"", &group_id_string);
-            change_group_membership(
+            modify_group(
                 user_id_string,
                 group_id_string,
                 admins_to_remove,
-                GroupMembershipFunction::RemoveAdmins,
+                GroupModificationFunction::RemoveAdmins,
             )
             .await?;
         }
@@ -206,11 +206,11 @@ async fn main() -> Result<()> {
             new_members: new_member_strings,
         } => {
             println!("Adding members to group \"{}\"", &group_id_string);
-            change_group_membership(
+            modify_group(
                 user_id_string,
                 group_id_string,
                 new_member_strings,
-                GroupMembershipFunction::AddMembers,
+                GroupModificationFunction::AddMembers,
             )
             .await?;
         }
@@ -220,11 +220,11 @@ async fn main() -> Result<()> {
             members_to_remove,
         } => {
             println!("Removing members from group \"{}\"", &group_id_string);
-            change_group_membership(
+            modify_group(
                 user_id_string,
                 group_id_string,
                 members_to_remove,
-                GroupMembershipFunction::RemoveMembers,
+                GroupModificationFunction::RemoveMembers,
             )
             .await?;
         }
@@ -242,18 +242,18 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-enum GroupMembershipFunction {
+enum GroupModificationFunction {
     AddMembers,
     AddAdmins,
     RemoveMembers,
     RemoveAdmins,
 }
 
-async fn change_group_membership(
+async fn modify_group(
     user_id_string: String,
     group_id_string: String,
     user_strings: Vec<String>,
-    membership_function: GroupMembershipFunction,
+    modifification_function: GroupModificationFunction,
 ) -> Result<()> {
     let sdk = initialize_sdk_from_file(&user_id_string).await?;
     let group_id = GroupId::try_from(group_id_string)?;
@@ -261,19 +261,19 @@ async fn change_group_membership(
         .iter()
         .map(|u| UserId::try_from(u.as_str()))
         .collect::<std::result::Result<Vec<_>, _>>()?;
-    let add_result = match membership_function {
-        GroupMembershipFunction::AddAdmins => sdk.group_add_admins(&group_id, &user_ids),
-        GroupMembershipFunction::RemoveAdmins => sdk.group_remove_admins(&group_id, &user_ids),
-        GroupMembershipFunction::AddMembers => sdk.group_add_members(&group_id, &user_ids),
-        GroupMembershipFunction::RemoveMembers => sdk.group_remove_members(&group_id, &user_ids),
+    let modify_result = match modifification_function {
+        GroupModificationFunction::AddAdmins => sdk.group_add_admins(&group_id, &user_ids),
+        GroupModificationFunction::RemoveAdmins => sdk.group_remove_admins(&group_id, &user_ids),
+        GroupModificationFunction::AddMembers => sdk.group_add_members(&group_id, &user_ids),
+        GroupModificationFunction::RemoveMembers => sdk.group_remove_members(&group_id, &user_ids),
     }
     .await?;
-    let successes = add_result
+    let successes = modify_result
         .succeeded()
         .iter()
         .map(|user| user.id())
         .collect::<Vec<_>>();
-    let failures = add_result
+    let failures = modify_result
         .failed()
         .iter()
         .map(|err| format!("User: {}, Error: {}", err.user().id(), err.error()))
