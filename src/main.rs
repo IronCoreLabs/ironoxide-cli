@@ -253,7 +253,7 @@ async fn modify_group(
     user_id_string: String,
     group_id_string: String,
     user_strings: Vec<String>,
-    modifification_function: GroupModificationFunction,
+    modification_function: GroupModificationFunction,
 ) -> Result<()> {
     let sdk = initialize_sdk_from_file(&user_id_string).await?;
     let group_id = GroupId::try_from(group_id_string)?;
@@ -261,7 +261,7 @@ async fn modify_group(
         .iter()
         .map(|u| UserId::try_from(u.as_str()))
         .collect::<std::result::Result<Vec<_>, _>>()?;
-    let modify_result = match modifification_function {
+    let modify_result = match modification_function {
         GroupModificationFunction::AddAdmins => sdk.group_add_admins(&group_id, &user_ids),
         GroupModificationFunction::RemoveAdmins => sdk.group_remove_admins(&group_id, &user_ids),
         GroupModificationFunction::AddMembers => sdk.group_add_members(&group_id, &user_ids),
