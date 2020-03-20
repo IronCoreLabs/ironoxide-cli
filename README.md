@@ -41,36 +41,75 @@ cargo install --git https://github.com/IronCoreLabs/ironoxide-cli
 
 ## Usage
 
-IronOxide CLI must be run from the directory where your Identity Assertion Key and configuration files are.
-It is used by running `ironoxide-cli`, followed by your desired subcommands and options.
+IronOxide CLI is used by running `ironoxide-cli`, followed by your desired subcommands and options.
 You can see all the available subcommands by running `ironoxide-cli -h`.
-There are currently two subcommands available: `user-create` and `group-create`.
+Subcommands are currently broken into two categories: user commands and group commands.
 
-### User and Device Creation
+### User Commands
 
-The `user-create` subcommand is used to create a user in the IronCore service,
-generate a device for that user, and output the device context to a file.
-It requires the desired user's ID and password. The user's device context will be output to a file named "\<USER-ID\>.json".
+#### user-create
 
-### Group Creation
+The `user-create` subcommand is used to create a user in the IronCore service, generate a device for that user,
+and output the device context to a file. It requires the desired user's ID and password. The user's device context
+will be output to a file, which will be named "\<USER-ID\>.json" by default.
 
-The `group-create` subcommand is used to create multiple groups for the given user.
-As it requires the user's device context in a file named "\<USER-ID.json\>", it is typically run
-immediately after `user-create`. The group will be created with the given user as the owner and with no additional administrators or members.
+### Group Commands
+
+#### group-create
+
+The `group-create` subcommand is used to create multiple groups for the given user. As it requires the user's
+device context in a file, it is typically run immediately after `user-create`. The group will be created with
+the calling user as the owner and with no additional members or administrators.
+
+#### group-add-admins
+
+The `group-add-admins` subcommand is used to add users to a group as administrators. These users will not automatically be group members.
+
+#### group-remove-admins
+
+The `group-remove-admins` subcommand is used to remove administrators from a group. These users will remain group members
+if they were previously. The group owner cannot be removed as an administrator.
+
+#### group-add-members
+
+The `group-add-members` subcommand is used to add users to a group as members.
+
+#### group-remove-members
+
+The `group-remove-members` subcommand is used to remove members from a group.
+
+#### group-list
+
+The `group-list` subcommand is used to list all groups that the user is a member or administrator of.
 
 ## Examples
 
 ```console
-$ ironoxide-cli user-create ironadmin -p foobar
+$ ironoxide-cli user-create ironadmin --password foobar
 Creating user "ironadmin"
 Generating device for user "ironadmin"
 Outputting device context to "ironadmin.json"
 
-$ ironoxide-cli group-create customers employees others -u ironadmin
+$ ironoxide-cli group-create customers employees others --device ironadmin.json
 Found DeviceContext in "ironadmin.json"
 Generating group "employees" for user "ironadmin"
 Generating group "customers" for user "ironadmin"
 Generating group "others" for user "ironadmin"
+
+$ ironoxide-cli user-create ironemployee --password foobar
+Creating user "ironemployee"
+Generating device for user "ironemployee"
+Outputting device context to "ironemployee.json"
+
+$ ironoxide-cli group-add-members ironemployee --group employees --device ironadmin.json
+Adding members to group "employees"
+Found DeviceContext in "ironadmin.json"
+Successes: ["ironemployee"]
+Failures: []
+
+$ ironoxide-cli group-list ironemployee.json
+Found DeviceContext in "ironemployee.json"
+Groups found: ["employees"]
 ```
 
 # License

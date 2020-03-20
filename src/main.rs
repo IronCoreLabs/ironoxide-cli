@@ -18,61 +18,96 @@ type Result<T> = std::result::Result<T, InitAppErr>;
 
 #[derive(StructOpt)]
 enum CommandLineArgs {
-    /// Generates and outputs the DeviceContext for a given user to the file "<user_id>.json".
+    /// Generate the device context for a given user and output it to a file
     UserCreate {
-        #[structopt(
-            parse(from_os_str),
-            default_value = "config.json",
-            short,
-            long = "config"
-        )]
-        config_file_path: PathBuf,
-
-        #[structopt(
-            parse(from_os_str),
-            default_value = "assertionKey.pem",
-            short,
-            long = "iak"
-        )]
-        iak_file_path: PathBuf,
-
-        /// UserId to create and generate a device for
-        user_id: String,
-
+        /// User to create and generate a device for
+        #[structopt(parse(try_from_str = parse_user_id))]
+        user_id: UserId,
         /// Password for encrypting/decrypting the user's private key
-        #[structopt(short, long)]
-        password: String,
+        #[structopt(short, long, parse(from_str = parse_password))]
+        password: Password,
+        /// Path to IronCore Config file
+        #[structopt(default_value = "config.json", short, long = "config")]
+        config_file_path: PathBuf,
+        /// Path to Identity Assertion Key
+        #[structopt(default_value = "assertionKey.pem", short, long = "iak")]
+        iak_file_path: PathBuf,
+        /// Where to output the device context [default: <user_id>.json]
+        #[structopt(short, long = "out")]
+        output_file_path: Option<PathBuf>,
     },
-    /// Creates groups for a given user. Note: requires the user's DeviceContext in the file "<user_id>.json".
+    /// Create groups with the calling user as owner
     GroupCreate {
-        /// UserId for the group owner
-        #[structopt(short, long = "user")]
-        user_id: String,
-
-        /// Space-separated list of desired GroupIds
-        #[structopt(required = true)]
-        group_ids: Vec<String>,
+        /// Space-separated list of desired groups
+        #[structopt(required = true, parse(try_from_str = parse_group_id))]
+        group_ids: Vec<GroupId>,
+        /// Path to the calling user's device context
+        #[structopt(short, long = "device")]
+        device_path: PathBuf,
     },
-    /// Adds new members to a group. Note: requires the user's DeviceContext in the file "<user_id>.json".
+    /// Add new admins to a group
+    GroupAddAdmins {
+        /// Space-separated list of users to add as group admins
+        #[structopt(required = true, parse(try_from_str = parse_user_id))]
+        new_admins: Vec<UserId>,
+        /// Group to add admins to
+        #[structopt(short, long = "group", parse(try_from_str = parse_group_id))]
+        group_id: GroupId,
+        /// Path to the calling user's device context
+        #[structopt(short, long = "device")]
+        device_path: PathBuf,
+    },
+    /// Remove admins from a group
+    GroupRemoveAdmins {
+        /// Space-separated list of users to remove as group admins
+        #[structopt(required = true, parse(try_from_str = parse_user_id))]
+        admins_to_remove: Vec<UserId>,
+        /// Group to remove admins from
+        #[structopt(short, long = "group", parse(try_from_str = parse_group_id))]
+        group_id: GroupId,
+        /// Path to the calling user's device context
+        #[structopt(short, long = "device")]
+        device_path: PathBuf,
+    },
+    /// Add new members to a group
     GroupAddMembers {
-        /// Space-separated list of users to add to the group
-        #[structopt(required = true)]
-        new_members: Vec<String>,
-
-        /// GroupId to add members to
-        #[structopt(short, long = "group")]
-        group_id: String,
-
-        /// UserId to use for adding members
-        #[structopt(short, long = "user")]
-        user_id: String,
+        /// Space-separated list of users to add as group members
+        #[structopt(required = true, parse(try_from_str = parse_user_id))]
+        new_members: Vec<UserId>,
+        /// Group to add members to
+        #[structopt(short, long = "group", parse(try_from_str = parse_group_id))]
+        group_id: GroupId,
+        /// Path to the calling user's device context
+        #[structopt(short, long = "device")]
+        device_path: PathBuf,
     },
-    /// Lists the groups the user is a member/admin of. Note: requires the user's DeviceContext in the file "<user_id>.json".
+    /// Remove members from a group
+    GroupRemoveMembers {
+        /// Space-separated list of users to remove as group members
+        #[structopt(required = true, parse(try_from_str = parse_user_id))]
+        members_to_remove: Vec<UserId>,
+        /// Group to remove members from
+        #[structopt(short, long = "group", parse(try_from_str = parse_group_id))]
+        group_id: GroupId,
+        /// Path to the calling user's device context
+        #[structopt(short, long = "device")]
+        device_path: PathBuf,
+    },
+    /// List the groups the user is a member/admin of
     GroupList {
-        /// UserId to list groups for
-        #[structopt(required = true)]
-        user_id: String,
+        /// Path to the calling user's device context
+        device_path: PathBuf,
     },
+}
+
+fn parse_user_id(user_id_string: &str) -> Result<UserId> {
+    Ok(UserId::try_from(user_id_string)?)
+}
+fn parse_group_id(group_id_string: &str) -> Result<GroupId> {
+    Ok(GroupId::try_from(group_id_string)?)
+}
+fn parse_password(password_string: &str) -> Password {
+    Password(password_string.to_string())
 }
 
 #[tokio::main]
@@ -82,8 +117,9 @@ async fn main() -> Result<()> {
         CommandLineArgs::UserCreate {
             iak_file_path,
             config_file_path,
-            user_id: user_id_string,
+            user_id,
             password,
+            output_file_path: maybe_output_file_path,
         } => {
             if !iak_file_path.is_file() {
                 Err(InitAppErr(format!(
@@ -97,55 +133,105 @@ async fn main() -> Result<()> {
                     config_file_path.display()
                 )))?;
             }
-            // this check is because the output filename can't have a '/' in it, not an actual restriction on UserIds
-            if user_id_string.contains('/') {
-                Err(InitAppErr(
-                    "UserId cannot contain any of the following characters: /".to_string(),
-                ))?
-            }
-            let user_id = UserId::try_from(user_id_string)?;
 
             let config_file = File::open(config_file_path)?;
             let config: InputConfig = serde_json::from_reader(config_file)?;
 
-            let output_filename = format!("{}.json", user_id.id());
-            let user_id_path = PathBuf::from(&output_filename);
-            if user_id_path.is_file() {
+            let output_file_path =
+                maybe_output_file_path.unwrap_or(PathBuf::from(format!("{}.json", user_id.id())));
+            if output_file_path.display().to_string().contains('/') {
+                Err(InitAppErr(
+                    "Output file path cannot contain any of the following characters: /"
+                        .to_string(),
+                ))?
+            }
+            if output_file_path.is_file() {
                 Err(InitAppErr(format!(
                     "\"{}\" already exists",
-                    &output_filename
+                    &output_file_path.display()
                 )))?
             }
 
             let device_context =
-                create_user_and_device(&config, &iak_file_path, &user_id, &Password(password))
-                    .await?;
-            serde_json::to_writer_pretty(File::create(&output_filename)?, &device_context)?;
+                create_user_and_device(&config, &iak_file_path, &user_id, &password).await?;
+            serde_json::to_writer_pretty(File::create(&output_file_path)?, &device_context)?;
             println!(
                 "{}",
-                format!("Outputting device context to \"{}.json\"", user_id.id())
+                format!(
+                    "Outputting device context to \"{}\"",
+                    output_file_path.display()
+                )
             );
         }
-
         CommandLineArgs::GroupCreate {
-            user_id,
-            group_ids: group_id_strings,
+            group_ids,
+            device_path,
         } => {
-            let sdk = initialize_sdk_from_file(&user_id).await?;
-            let group_ids = group_id_strings
-                .iter()
-                .map(|group_id| GroupId::try_from(group_id.as_str()))
-                .collect::<std::result::Result<Vec<_>, _>>()?;
-
+            let sdk = initialize_sdk_from_file(&device_path).await?;
             let group_futures = group_ids
                 .iter()
                 .map(|group_id| create_group(&sdk, group_id));
 
             futures::future::try_join_all(group_futures).await?;
         }
-
-        CommandLineArgs::GroupList { user_id } => {
-            let sdk = initialize_sdk_from_file(&user_id).await?;
+        CommandLineArgs::GroupAddAdmins {
+            group_id,
+            new_admins,
+            device_path,
+        } => {
+            println!("Adding admins to group \"{}\"", group_id.id());
+            modify_group(
+                &group_id,
+                &new_admins,
+                &device_path,
+                GroupModificationFunction::AddAdmins,
+            )
+            .await?;
+        }
+        CommandLineArgs::GroupRemoveAdmins {
+            group_id,
+            admins_to_remove,
+            device_path,
+        } => {
+            println!("Removing admins from group \"{}\"", group_id.id());
+            modify_group(
+                &group_id,
+                &admins_to_remove,
+                &device_path,
+                GroupModificationFunction::RemoveAdmins,
+            )
+            .await?;
+        }
+        CommandLineArgs::GroupAddMembers {
+            group_id,
+            new_members,
+            device_path,
+        } => {
+            println!("Adding members to group \"{}\"", group_id.id());
+            modify_group(
+                &group_id,
+                &new_members,
+                &device_path,
+                GroupModificationFunction::AddMembers,
+            )
+            .await?;
+        }
+        CommandLineArgs::GroupRemoveMembers {
+            group_id,
+            members_to_remove,
+            device_path,
+        } => {
+            println!("Removing members from group \"{}\"", group_id.id());
+            modify_group(
+                &group_id,
+                &members_to_remove,
+                &device_path,
+                GroupModificationFunction::RemoveMembers,
+            )
+            .await?;
+        }
+        CommandLineArgs::GroupList { device_path } => {
+            let sdk = initialize_sdk_from_file(&device_path).await?;
             let groups = sdk.group_list().await?;
             let group_ids = groups
                 .result()
@@ -154,49 +240,56 @@ async fn main() -> Result<()> {
                 .collect::<Vec<_>>();
             println!("Groups found: {:?}", group_ids)
         }
-
-        CommandLineArgs::GroupAddMembers {
-            user_id,
-            group_id: group_id_string,
-            new_members: member_id_strings,
-        } => {
-            let sdk = initialize_sdk_from_file(&user_id).await?;
-            let group_id = GroupId::try_from(group_id_string)?;
-            let members_ids = member_id_strings
-                .iter()
-                .map(|u| UserId::try_from(u.as_str()))
-                .collect::<std::result::Result<Vec<_>, _>>()?;
-            let add_result = sdk.group_add_members(&group_id, &members_ids).await?;
-            let successes = add_result
-                .succeeded()
-                .iter()
-                .map(|user| user.id())
-                .collect::<Vec<_>>();
-            let failures = add_result
-                .failed()
-                .iter()
-                .map(|err| format!("User: {}, Error: {}", err.user().id(), err.error()))
-                .collect::<Vec<_>>();
-            println!("Successful adds: {:?}", successes);
-            println!("Failed adds: {:?}", failures);
-        }
     }
-
     Ok(())
 }
 
-async fn initialize_sdk_from_file(user_id: &str) -> Result<IronOxide> {
-    let device_context_filename = format!("{}.json", user_id);
-    let device_context_path = PathBuf::from(&device_context_filename);
-    if device_context_path.is_file() {
-        let device_context_file = File::open(device_context_path)?;
+enum GroupModificationFunction {
+    AddMembers,
+    AddAdmins,
+    RemoveMembers,
+    RemoveAdmins,
+}
+
+async fn modify_group(
+    group_id: &GroupId,
+    user_ids: &Vec<UserId>,
+    device_path: &PathBuf,
+    modification_function: GroupModificationFunction,
+) -> Result<()> {
+    let sdk = initialize_sdk_from_file(device_path).await?;
+    let modify_result = match modification_function {
+        GroupModificationFunction::AddAdmins => sdk.group_add_admins(&group_id, &user_ids),
+        GroupModificationFunction::RemoveAdmins => sdk.group_remove_admins(&group_id, &user_ids),
+        GroupModificationFunction::AddMembers => sdk.group_add_members(&group_id, &user_ids),
+        GroupModificationFunction::RemoveMembers => sdk.group_remove_members(&group_id, &user_ids),
+    }
+    .await?;
+    let successes = modify_result
+        .succeeded()
+        .iter()
+        .map(|user| user.id())
+        .collect::<Vec<_>>();
+    let failures = modify_result
+        .failed()
+        .iter()
+        .map(|err| format!("User: {}, Error: {}", err.user().id(), err.error()))
+        .collect::<Vec<_>>();
+    println!("Successes: {:?}", successes);
+    println!("Failures: {:?}", failures);
+    Ok(())
+}
+
+async fn initialize_sdk_from_file(device_path: &PathBuf) -> Result<IronOxide> {
+    if device_path.is_file() {
+        let device_context_file = File::open(&device_path)?;
         let device_context: DeviceContext = serde_json::from_reader(device_context_file)?;
-        println!("Found DeviceContext in \"{}\"", device_context_filename);
+        println!("Found DeviceContext in \"{}\"", device_path.display());
         Ok(ironoxide::initialize(&device_context, &Default::default()).await?)
     } else {
         Err(InitAppErr(format!(
             "No DeviceContext found in \"{}\"",
-            device_context_filename
+            device_path.display()
         )))
     }
 }
@@ -219,6 +312,12 @@ struct InputConfig {
 }
 
 struct InitAppErr(String);
+
+impl fmt::Display for InitAppErr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 impl From<IronOxideErr> for InitAppErr {
     fn from(e: IronOxideErr) -> Self {
