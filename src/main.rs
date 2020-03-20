@@ -96,7 +96,6 @@ enum CommandLineArgs {
     /// List the groups the user is a member/admin of
     GroupList {
         /// Path to the calling user's device context
-        #[structopt(short, long = "device")]
         device_path: PathBuf,
     },
 }
