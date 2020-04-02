@@ -102,5 +102,5 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v1
       with:
-        name: release-${{ matrix.target }}
+        name: release-${{ matrix.os }}
         path: target/release/ironoxide-cli-${{ matrix.os }}
