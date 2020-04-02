@@ -11,13 +11,6 @@ jobs:
     needs: build
     steps:
     - uses: actions/checkout@v2
-    - uses: actions/create-release@v1
-      id: release
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Version ${{ github.ref }}
     - name: Decrypt PGP key
       uses: IronCoreLabs/ironhide-actions/decrypt@v1
       with:
@@ -25,6 +18,13 @@ jobs:
         input: .github/signing-key.asc.iron
     - name: Import PGP key
       run: gpg --batch --import .github/signing-key.asc
+    - uses: actions/create-release@v1
+      id: release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Version ${{ github.ref }}
 
     - name: Download release artifacts from ubuntu-18.04
       uses: actions/download-artifact@v1
