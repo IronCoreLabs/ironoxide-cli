@@ -82,38 +82,10 @@ jobs:
         asset_name: ironoxide-cli-macos-10.15.asc
         asset_content_type: application/pgp-signature
 
-    - name: Download release artifacts from windows-2019
-      uses: actions/download-artifact@v1
-      with:
-        name: release-windows-2019
-        path: release/windows-2019
-    - name: Sign artifact for windows-2019
-      run: |
-        gpg --batch --detach-sign -a release/windows-2019/ironoxide-cli-windows-2019
-        gpg --batch --verify release/windows-2019/ironoxide-cli-windows-2019.asc release/windows-2019/ironoxide-cli-windows-2019
-    - name: Upload artifact for windows-2019
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.release.outputs.upload_url }}
-        asset_path: release/windows-2019/ironoxide-cli-windows-2019
-        asset_name: ironoxide-cli-windows-2019
-        asset_content_type: application/data
-    - name: Upload signature for windows-2019
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.release.outputs.upload_url }}
-        asset_path: release/windows-2019/ironoxide-cli-windows-2019.asc
-        asset_name: ironoxide-cli-windows-2019.asc
-        asset_content_type: application/pgp-signature
-
   build:
     strategy:
       matrix:
-        os: [ ubuntu-18.04, macos-10.15, windows-2019 ]
+        os: [ ubuntu-18.04, macos-10.15 ]
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
