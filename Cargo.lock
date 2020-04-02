@@ -671,6 +671,7 @@ dependencies = [
  "frank_jwt",
  "futures",
  "ironoxide",
+ "itertools",
  "serde",
  "serde_json",
  "structopt",

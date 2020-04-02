@@ -1,9 +1,12 @@
+use ironoxide::document::DocumentOps;
 use ironoxide::{
     config::IronOxideConfig,
+    document::{DocumentEncryptOpts, ExplicitGrant, UserOrGroup},
     group::{GroupCreateOpts, GroupId, GroupOps},
     user::{UserCreateResult, UserId, UserOps},
     DeviceContext, IronOxide, IronOxideErr,
 };
+use itertools::EitherOrBoth;
 use serde::Deserialize;
 use std::{
     convert::TryFrom,
@@ -97,6 +100,34 @@ enum CommandLineArgs {
     GroupList {
         /// Path to the calling user's device context
         device_path: PathBuf,
+    },
+    /// Encrypt a file
+    FileEncrypt {
+        /// Path to the file being encrypted
+        filename: PathBuf,
+        /// Path to the calling user's device context
+        #[structopt(short, long = "device")]
+        device_path: PathBuf,
+        /// Users who will have access to the document
+        #[structopt(short, long, parse(try_from_str = parse_user_id))]
+        users: Vec<UserId>,
+        /// Groups who will have access to the document
+        #[structopt(short, long, parse(try_from_str = parse_group_id))]
+        groups: Vec<GroupId>,
+        /// Encrypted output file to write [default: <filename>.iron]
+        #[structopt(short, long)]
+        output: Option<PathBuf>,
+    },
+    /// Decrypt a file
+    FileDecrypt {
+        /// Path to the file being decrypted
+        filename: PathBuf,
+        /// Path to the calling user's device context
+        #[structopt(short, long = "device")]
+        device_path: PathBuf,
+        /// Decrypted output file to write [default: <filename> - .iron]
+        #[structopt(short, long)]
+        output: Option<PathBuf>,
     },
 }
 
@@ -239,6 +270,102 @@ async fn main() -> Result<()> {
                 .map(|meta_result| meta_result.id().id())
                 .collect::<Vec<_>>();
             println!("Groups found: {:?}", group_ids)
+        }
+        CommandLineArgs::FileEncrypt {
+            filename: infile,
+            device_path,
+            users: user_ids,
+            groups: group_ids,
+            output: maybe_output,
+        } => {
+            let file = std::fs::read(infile.clone())?;
+            let sdk = initialize_sdk_from_file(&device_path).await?;
+            let output = match maybe_output {
+                // User specified an output path.
+                Some(desired) => {
+                    if desired.is_dir() {
+                        // This is the file component of infile.
+                        let mut filename = match infile.file_name() {
+                            Some(name) => std::result::Result::Ok(name),
+                            None => std::result::Result::Err(InitAppErr(
+                                "Trying to write output to directory, unable to infer file name"
+                                    .to_string(),
+                            )),
+                        }?
+                        .to_os_string();
+                        filename.push(".iron");
+                        let mut desired = desired.clone();
+                        desired.push(filename);
+                        desired
+                    } else {
+                        desired
+                    }
+                }
+                // User didn't specify an output path. Add ".iron" to the input path.
+                None => {
+                    let mut output_path = infile.clone();
+                    let new_extension = match output_path.extension() {
+                        Some(extension) => {
+                            let mut ext_os = extension.to_os_string();
+                            ext_os.push(".iron");
+                            ext_os
+                        }
+                        None => std::ffi::OsString::from(".iron"),
+                    };
+                    output_path.set_extension(new_extension);
+                    output_path
+                }
+            };
+            let mut users_or_groups = group_ids
+                .iter()
+                .map(|group| group.into())
+                .collect::<Vec<UserOrGroup>>();
+            let mut users = user_ids
+                .iter()
+                .map(|user| user.into())
+                .collect::<Vec<UserOrGroup>>();
+            users_or_groups.append(&mut users);
+            let grants = ExplicitGrant::new(true, &users_or_groups);
+            let opts = DocumentEncryptOpts::new(None, None, EitherOrBoth::Left(grants));
+            let encrypt_result = sdk.document_encrypt(&file, &opts).await?;
+            std::fs::write(output, encrypt_result.encrypted_data())?;
+        }
+        CommandLineArgs::FileDecrypt {
+            filename,
+            device_path,
+            output: maybe_output,
+        } => {
+            let output = match maybe_output {
+                // they told us what the output should be. use it
+                Some(desired) => desired,
+                // they haven't given us an output. let's guess
+                None => {
+                    match filename.extension() {
+                        // the filename has an extension. check if it's .iron and remove it
+                        Some(extension) => {
+                            // the extension is ".iron". remove it
+                            if extension.to_os_string() == std::ffi::OsString::from("iron") {
+                                let mut output_path = filename.clone();
+                                output_path.set_extension("");
+                                std::result::Result::Ok(output_path)
+                            // the extension isn't ".iron". Can't safely choose an output file, so bail out.
+                            } else {
+                                std::result::Result::Err(InitAppErr(
+                                    "No output file given, and unable to infer.".to_string(),
+                                ))
+                            }
+                        }
+                        // the filename has no extension. Can't safely choose an output file, so bail out.
+                        None => std::result::Result::Err(InitAppErr(
+                            "No output file given, and unable to infer.".to_string(),
+                        )),
+                    }?
+                }
+            };
+            let file = std::fs::read(filename.clone())?;
+            let sdk = initialize_sdk_from_file(&device_path).await?;
+            let decrypt_result = sdk.document_decrypt(&file).await?;
+            std::fs::write(output, decrypt_result.decrypted_data())?;
         }
     }
     Ok(())
