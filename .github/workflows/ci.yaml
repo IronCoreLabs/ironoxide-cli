@@ -38,3 +38,12 @@ jobs:
         with:
           command: fmt
           args: --all -- --check
+
+  security:
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: Rust security audit
+      uses: actions-rs/audit-check@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
