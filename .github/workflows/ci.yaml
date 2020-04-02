@@ -1,10 +1,6 @@
 name: ironoxide-cli
 
-on:
-  push:
-    branches:
-      - master
-  pull_request:
+on: push
 
 jobs:
   check:
@@ -12,6 +8,13 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
+      - name: Restore rust cache
+        uses: actions/cache@v1
+        with:
+          key: ${{ github.workflow }}-rust-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ github.workflow }}-rust-
+          path: ~/.cargo
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
