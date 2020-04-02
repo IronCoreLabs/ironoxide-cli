@@ -15,6 +15,9 @@ jobs:
           restore-keys: |
             ${{ github.workflow }}-rust-
           path: ~/.cargo
+      # Work around https://github.com/actions/cache/issues/133#issuecomment-599102035
+      - run: sudo chown -R $(whoami):$(id -ng) ~/.cargo/
+        name: Remove .cargo/bin so we can restore it from cache
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
