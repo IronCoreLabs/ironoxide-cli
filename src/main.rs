@@ -101,31 +101,31 @@ enum CommandLineArgs {
         /// Path to the calling user's device context
         device_path: PathBuf,
     },
-    /// Encrypt a file
+    /// Encrypt a file to given users and groups. The calling user will automatically be added to the grants list.
     FileEncrypt {
-        /// Path to the file being encrypted
+        /// Path to the file to encrypt
         filename: PathBuf,
         /// Path to the calling user's device context
         #[structopt(short, long = "device")]
         device_path: PathBuf,
-        /// Users who will have access to the document
+        /// Users who will be granted access to the document
         #[structopt(short, long, parse(try_from_str = parse_user_id))]
         users: Vec<UserId>,
-        /// Groups who will have access to the document
+        /// Groups who will be granted access to the document
         #[structopt(short, long, parse(try_from_str = parse_group_id))]
         groups: Vec<GroupId>,
-        /// Encrypted output file to write [default: <filename>.iron]
+        /// Encrypted output file to write [default: "<filename>.iron"]
         #[structopt(short, long)]
         output: Option<PathBuf>,
     },
     /// Decrypt a file
     FileDecrypt {
-        /// Path to the file being decrypted
+        /// Path to the file to decrypt
         filename: PathBuf,
         /// Path to the calling user's device context
         #[structopt(short, long = "device")]
         device_path: PathBuf,
-        /// Decrypted output file to write [default: <filename> - .iron]
+        /// Decrypted output file to write [default: "<filename> - .iron"]
         #[structopt(short, long)]
         output: Option<PathBuf>,
     },
@@ -279,38 +279,40 @@ async fn main() -> Result<()> {
             output: maybe_output,
         } => {
             let file = std::fs::read(infile.clone())?;
+            println!("Read in file {:?}", infile);
             let sdk = initialize_sdk_from_file(&device_path).await?;
             let output = match maybe_output {
                 // User specified an output path.
                 Some(desired) => {
+                    // User specified a directory for output with no filename
                     if desired.is_dir() {
                         // This is the file component of infile.
                         let mut filename = match infile.file_name() {
-                            Some(name) => std::result::Result::Ok(name),
-                            None => std::result::Result::Err(InitAppErr(
-                                "Trying to write output to directory, unable to infer file name"
+                            Some(name) => Result::Ok(name),
+                            None => Result::Err(InitAppErr(
+                                "Trying to write output to directory, but unable to infer file name"
                                     .to_string(),
                             )),
                         }?
                         .to_os_string();
                         filename.push(".iron");
-                        let mut desired = desired.clone();
-                        desired.push(filename);
-                        desired
+                        let mut desired_filename = desired;
+                        desired_filename.push(filename);
+                        desired_filename
                     } else {
                         desired
                     }
                 }
                 // User didn't specify an output path. Add ".iron" to the input path.
                 None => {
-                    let mut output_path = infile.clone();
+                    let mut output_path = infile;
                     let new_extension = match output_path.extension() {
                         Some(extension) => {
                             let mut ext_os = extension.to_os_string();
                             ext_os.push(".iron");
                             ext_os
                         }
-                        None => std::ffi::OsString::from(".iron"),
+                        None => std::ffi::OsString::from("iron"),
                     };
                     output_path.set_extension(new_extension);
                     output_path
@@ -328,7 +330,30 @@ async fn main() -> Result<()> {
             let grants = ExplicitGrant::new(true, &users_or_groups);
             let opts = DocumentEncryptOpts::new(None, None, EitherOrBoth::Left(grants));
             let encrypt_result = sdk.document_encrypt(&file, &opts).await?;
-            std::fs::write(output, encrypt_result.encrypted_data())?;
+            let successes = encrypt_result
+                .grants()
+                .iter()
+                .map(|u_or_g| match u_or_g {
+                    UserOrGroup::User { id } => format!("User: {}", id.id()),
+                    UserOrGroup::Group { id } => format!("Group: {}", id.id()),
+                })
+                .collect::<Vec<_>>();
+            let failures = encrypt_result
+                .access_errs()
+                .iter()
+                .map(|edit_err| match &edit_err.user_or_group {
+                    UserOrGroup::User { id } => {
+                        format!("User: {}, Error: {}", id.id(), edit_err.err)
+                    }
+                    UserOrGroup::Group { id } => {
+                        format!("Group: {}, Error: {}", id.id(), edit_err.err)
+                    }
+                })
+                .collect::<Vec<_>>();
+            println!("Successfully encrypted file to: {:#?}", successes);
+            println!("Failed to encrypt file to: {:#?}", failures);
+            std::fs::write(&output, encrypt_result.encrypted_data())?;
+            println!("Output encrypted file to {:?}", output.display());
         }
         CommandLineArgs::FileDecrypt {
             filename,
@@ -336,36 +361,38 @@ async fn main() -> Result<()> {
             output: maybe_output,
         } => {
             let output = match maybe_output {
-                // they told us what the output should be. use it
+                // User specified output file
                 Some(desired) => desired,
-                // they haven't given us an output. let's guess
+                // User did not specify output, so try to infer
                 None => {
                     match filename.extension() {
-                        // the filename has an extension. check if it's .iron and remove it
+                        // The input file has an extension. If it's .iron, remove it
                         Some(extension) => {
-                            // the extension is ".iron". remove it
+                            // The extension is ".iron"
                             if extension.to_os_string() == std::ffi::OsString::from("iron") {
                                 let mut output_path = filename.clone();
                                 output_path.set_extension("");
                                 std::result::Result::Ok(output_path)
-                            // the extension isn't ".iron". Can't safely choose an output file, so bail out.
+                            // The extension isn't ".iron", so we can't safely choose an output file
                             } else {
                                 std::result::Result::Err(InitAppErr(
                                     "No output file given, and unable to infer.".to_string(),
                                 ))
                             }
                         }
-                        // the filename has no extension. Can't safely choose an output file, so bail out.
+                        // The filename has no extension, so we can't safely choose an output file
                         None => std::result::Result::Err(InitAppErr(
                             "No output file given, and unable to infer.".to_string(),
                         )),
                     }?
                 }
             };
-            let file = std::fs::read(filename.clone())?;
             let sdk = initialize_sdk_from_file(&device_path).await?;
+            let file = std::fs::read(&filename)?;
+            println!("Read in file {:?}", filename);
             let decrypt_result = sdk.document_decrypt(&file).await?;
-            std::fs::write(output, decrypt_result.decrypted_data())?;
+            std::fs::write(&output, decrypt_result.decrypted_data())?;
+            println!("Output decrypted file to {:?}", output.display());
         }
     }
     Ok(())
