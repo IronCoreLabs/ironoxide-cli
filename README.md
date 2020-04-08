@@ -43,7 +43,7 @@ cargo install --git https://github.com/IronCoreLabs/ironoxide-cli
 
 IronOxide CLI is used by running `ironoxide-cli`, followed by your desired subcommands and options.
 You can see all the available subcommands by running `ironoxide-cli -h`.
-Subcommands are currently broken into two categories: user commands and group commands.
+Subcommands are currently broken into three categories: user commands, group commands, and file commands.
 
 ### User Commands
 
@@ -82,6 +82,18 @@ The `group-remove-members` subcommand is used to remove members from a group.
 
 The `group-list` subcommand is used to list all groups that the user is a member or administrator of.
 
+### File Commands
+
+#### file-encrypt
+
+The `file-encrypt` subcommand is used to encrypt a file to the provided users and groups. The calling user
+will also be granted access to the file. By default, the encrypted file will be output with the `.iron` extension appended.
+
+#### file-decrypt
+
+The `file-decrypt` subcommand is used to decrypt a file that the calling user has been granted access to. By default, the
+decrypted file will be output with the `.iron` extension removed.
+
 ## Examples
 
 ```console
@@ -110,6 +122,21 @@ Failures: []
 $ ironoxide-cli group-list ironemployee.json
 Found DeviceContext in "ironemployee.json"
 Groups found: ["employees"]
+
+$ ironoxide-cli file-encrypt keys.json --groups employees --device ironadmin.json
+Read in file "keys.json"
+Found DeviceContext in "ironadmin.json"
+Successfully encrypted file to: [
+    "User: ironadmin",
+    "Group: employees",
+]
+Failed to encrypt file to: []
+Output encrypted file to "keys.json.iron"
+
+$ ironoxide-cli file-decrypt keys.json.iron --device ironadmin.json
+Read in file "keys.json.iron"
+Found DeviceContext in "ironadmin.json"
+Output decrypted file to "keys.json"
 ```
 
 # License

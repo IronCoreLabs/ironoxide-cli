@@ -111,7 +111,7 @@ enum CommandLineArgs {
         /// Users who will be granted access to the document
         #[structopt(short, long, parse(try_from_str = parse_user_id))]
         users: Vec<UserId>,
-        /// Groups who will be granted access to the document
+        /// Groups that will be granted access to the document
         #[structopt(short, long, parse(try_from_str = parse_group_id))]
         groups: Vec<GroupId>,
         /// Encrypted output file to write [default: "<filename>.iron"]
