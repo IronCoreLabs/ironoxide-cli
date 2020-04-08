@@ -696,4 +696,20 @@ mod tests {
         ];
         assert_eq!(users_or_groups, expected);
     }
+
+    #[test]
+    fn collect_one_user_and_no_groups() {
+        let user = UserId::unsafe_from_string("a".to_string());
+        let user_ids = vec![user.clone()];
+        let users_or_groups = collect_users_and_groups(user_ids, vec![]);
+        let expected = vec![UserOrGroup::User { id: user }];
+        assert_eq!(users_or_groups, expected);
+    }
+
+    #[test]
+    fn collect_no_users_and_groups() {
+        let users_or_groups = collect_users_and_groups(vec![], vec![]);
+        let expected = vec![];
+        assert_eq!(users_or_groups, expected);
+    }
 }
