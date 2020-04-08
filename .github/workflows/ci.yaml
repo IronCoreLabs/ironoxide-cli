@@ -3,8 +3,7 @@ name: ironoxide-cli
 on: push
 
 jobs:
-  check:
-    name: Check
+  test:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
@@ -25,7 +24,7 @@ jobs:
           override: true
       - uses: actions-rs/cargo@v1
         with:
-          command: check
+          command: test
   fmt:
     name: Rustfmt
     runs-on: ubuntu-18.04
@@ -45,8 +44,8 @@ jobs:
   security:
     runs-on: ubuntu-18.04
     steps:
-    - uses: actions/checkout@v2
-    - name: Rust security audit
-      uses: actions-rs/audit-check@v1
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v2
+      - name: Rust security audit
+        uses: actions-rs/audit-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}

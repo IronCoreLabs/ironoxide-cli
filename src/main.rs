@@ -1,7 +1,6 @@
-use ironoxide::document::DocumentOps;
 use ironoxide::{
     config::IronOxideConfig,
-    document::{DocumentEncryptOpts, ExplicitGrant, UserOrGroup},
+    document::{DocumentEncryptOpts, DocumentOps, ExplicitGrant, UserOrGroup},
     group::{GroupCreateOpts, GroupId, GroupOps},
     user::{UserCreateResult, UserId, UserOps},
     DeviceContext, IronOxide, IronOxideErr,
@@ -10,6 +9,7 @@ use itertools::EitherOrBoth;
 use serde::Deserialize;
 use std::{
     convert::TryFrom,
+    ffi::OsString,
     fmt,
     fs::File,
     path::PathBuf,
@@ -202,7 +202,6 @@ async fn main() -> Result<()> {
             let group_futures = group_ids
                 .iter()
                 .map(|group_id| create_group(&sdk, group_id));
-
             futures::future::try_join_all(group_futures).await?;
         }
         CommandLineArgs::GroupAddAdmins {
@@ -274,128 +273,128 @@ async fn main() -> Result<()> {
         CommandLineArgs::FileEncrypt {
             filename: infile,
             device_path,
-            users: user_ids,
-            groups: group_ids,
+            users,
+            groups,
             output: maybe_output,
         } => {
-            let file = std::fs::read(infile.clone())?;
-            println!("Read in file {:?}", infile);
+            let file = std::fs::read(&infile)?;
+            println!("Read in file \"{}\"", infile.display());
+            let output = validate_encrypt_output_path(maybe_output, infile)?;
+            let users_or_groups = collect_users_and_groups(users, groups);
             let sdk = initialize_sdk_from_file(&device_path).await?;
-            let output = match maybe_output {
-                // User specified an output path.
-                Some(desired) => {
-                    // User specified a directory for output with no filename
-                    if desired.is_dir() {
-                        // This is the file component of infile.
-                        let mut filename = match infile.file_name() {
-                            Some(name) => Result::Ok(name),
-                            None => Result::Err(InitAppErr(
-                                "Trying to write output to directory, but unable to infer file name"
-                                    .to_string(),
-                            )),
-                        }?
-                        .to_os_string();
-                        filename.push(".iron");
-                        let mut desired_filename = desired;
-                        desired_filename.push(filename);
-                        desired_filename
-                    } else {
-                        desired
-                    }
-                }
-                // User didn't specify an output path. Add ".iron" to the input path.
-                None => {
-                    let mut output_path = infile;
-                    let new_extension = match output_path.extension() {
-                        Some(extension) => {
-                            let mut ext_os = extension.to_os_string();
-                            ext_os.push(".iron");
-                            ext_os
-                        }
-                        None => std::ffi::OsString::from("iron"),
-                    };
-                    output_path.set_extension(new_extension);
-                    output_path
-                }
-            };
-            let mut users_or_groups = group_ids
-                .iter()
-                .map(|group| group.into())
-                .collect::<Vec<UserOrGroup>>();
-            let mut users = user_ids
-                .iter()
-                .map(|user| user.into())
-                .collect::<Vec<UserOrGroup>>();
-            users_or_groups.append(&mut users);
-            let grants = ExplicitGrant::new(true, &users_or_groups);
-            let opts = DocumentEncryptOpts::new(None, None, EitherOrBoth::Left(grants));
-            let encrypt_result = sdk.document_encrypt(&file, &opts).await?;
-            let successes = encrypt_result
-                .grants()
-                .iter()
-                .map(|u_or_g| match u_or_g {
-                    UserOrGroup::User { id } => format!("User: {}", id.id()),
-                    UserOrGroup::Group { id } => format!("Group: {}", id.id()),
-                })
-                .collect::<Vec<_>>();
-            let failures = encrypt_result
-                .access_errs()
-                .iter()
-                .map(|edit_err| match &edit_err.user_or_group {
-                    UserOrGroup::User { id } => {
-                        format!("User: {}, Error: {}", id.id(), edit_err.err)
-                    }
-                    UserOrGroup::Group { id } => {
-                        format!("Group: {}, Error: {}", id.id(), edit_err.err)
-                    }
-                })
-                .collect::<Vec<_>>();
-            println!("Successfully encrypted file to: {:#?}", successes);
-            println!("Failed to encrypt file to: {:#?}", failures);
-            std::fs::write(&output, encrypt_result.encrypted_data())?;
-            println!("Output encrypted file to {:?}", output.display());
+            encrypt_file(sdk, file, users_or_groups, output).await?;
         }
         CommandLineArgs::FileDecrypt {
-            filename,
+            filename: infile,
             device_path,
             output: maybe_output,
         } => {
-            let output = match maybe_output {
-                // User specified output file
-                Some(desired) => desired,
-                // User did not specify output, so try to infer
-                None => {
-                    match filename.extension() {
-                        // The input file has an extension. If it's .iron, remove it
-                        Some(extension) => {
-                            // The extension is ".iron"
-                            if extension.to_os_string() == std::ffi::OsString::from("iron") {
-                                let mut output_path = filename.clone();
-                                output_path.set_extension("");
-                                std::result::Result::Ok(output_path)
-                            // The extension isn't ".iron", so we can't safely choose an output file
-                            } else {
-                                std::result::Result::Err(InitAppErr(
-                                    "No output file given, and unable to infer.".to_string(),
-                                ))
-                            }
-                        }
-                        // The filename has no extension, so we can't safely choose an output file
-                        None => std::result::Result::Err(InitAppErr(
-                            "No output file given, and unable to infer.".to_string(),
-                        )),
-                    }?
-                }
-            };
+            let file = std::fs::read(&infile)?;
+            println!("Read in file \"{}\"", infile.display());
+            let output = validate_decrypt_output_path(maybe_output, infile)?;
             let sdk = initialize_sdk_from_file(&device_path).await?;
-            let file = std::fs::read(&filename)?;
-            println!("Read in file {:?}", filename);
             let decrypt_result = sdk.document_decrypt(&file).await?;
             std::fs::write(&output, decrypt_result.decrypted_data())?;
-            println!("Output decrypted file to {:?}", output.display());
+            println!("Output decrypted file to \"{}\"", output.display());
         }
     }
     Ok(())
+}
+
+/// Encrypt the provided file to the `users_or_groups`. The file will also be granted to the calling user.
+/// The bytes of the encrypted file will be written to `output_path`.
+async fn encrypt_file(
+    sdk: IronOxide,
+    file: Vec<u8>,
+    users_or_groups: Vec<UserOrGroup>,
+    output_path: PathBuf,
+) -> Result<()> {
+    let grants = ExplicitGrant::new(true, &users_or_groups);
+    let opts = DocumentEncryptOpts::new(None, None, EitherOrBoth::Left(grants));
+    let encrypt_result = sdk.document_encrypt(&file, &opts).await?;
+    let successes = encrypt_result
+        .grants()
+        .iter()
+        .map(|u_or_g| match u_or_g {
+            UserOrGroup::User { id } => format!("User: {}", id.id()),
+            UserOrGroup::Group { id } => format!("Group: {}", id.id()),
+        })
+        .collect::<Vec<_>>();
+    let failures = encrypt_result
+        .access_errs()
+        .iter()
+        .map(|edit_err| match &edit_err.user_or_group {
+            UserOrGroup::User { id } => format!("User: {}, Error: {}", id.id(), edit_err.err),
+            UserOrGroup::Group { id } => format!("Group: {}, Error: {}", id.id(), edit_err.err),
+        })
+        .collect::<Vec<_>>();
+    println!("Successfully encrypted file to: {:#?}", successes);
+    println!("Failed to encrypt file to: {:#?}", failures);
+    std::fs::write(&output_path, encrypt_result.encrypted_data())?;
+    println!("Output encrypted file to \"{}\"", output_path.display());
+    Ok(())
+}
+
+/// Collect a vector of `UserId` and a vector of `GroupId` into a vector of `UserOrGroup`.
+fn collect_users_and_groups(user_ids: Vec<UserId>, group_ids: Vec<GroupId>) -> Vec<UserOrGroup> {
+    let mut users_or_groups = user_ids
+        .iter()
+        .map(|user| user.into())
+        .collect::<Vec<UserOrGroup>>();
+    let mut groups = group_ids
+        .iter()
+        .map(|group| group.into())
+        .collect::<Vec<UserOrGroup>>();
+    users_or_groups.append(&mut groups);
+    users_or_groups
+}
+
+/// Validate that the output path provided by the user can be used for decryption. If no path is provided,
+/// will try to infer an appropriate path for output, otherwise will return an Err.
+fn validate_decrypt_output_path(maybe_output: Option<PathBuf>, infile: PathBuf) -> Result<PathBuf> {
+    let output = maybe_output.unwrap_or({
+        let extension = infile.extension().ok_or(
+            // No extension on infile
+            InitAppErr("No output file given, and unable to infer.".to_string()),
+        )?;
+        if extension.to_os_string() == OsString::from("iron") {
+            let mut output_path = infile;
+            output_path.set_extension("");
+            Result::Ok(output_path)
+        } else {
+            // Unknown extension on infile
+            Result::Err(InitAppErr(
+                "No output file given, and unable to infer.".to_string(),
+            ))
+        }?
+    });
+    Ok(output)
+}
+
+/// Validate that the output path provided by the user can be used for encryption. If no path is provided,
+/// will append ".iron" to the input filename. Returns an Err if the input file ends with "..".
+fn validate_encrypt_output_path(maybe_output: Option<PathBuf>, infile: PathBuf) -> Result<PathBuf> {
+    let output = match maybe_output {
+        // User specified an output path.
+        Some(desired) => {
+            // User specified a directory for output
+            if desired.is_dir() {
+                let mut filename = infile
+                    .file_name()
+                    .ok_or(InitAppErr("Invalid input file".to_string()))?
+                    .to_os_string();
+                filename.push(".iron");
+                let mut desired_filename = desired;
+                desired_filename.push(filename);
+                desired_filename
+            } else {
+                desired
+            }
+        }
+        // User didn't specify an output path. Add ".iron" to the input path.
+        None => PathBuf::from(infile.display().to_string() + ".iron"),
+    };
+    Ok(output)
 }
 
 enum GroupModificationFunction {
@@ -602,4 +601,99 @@ fn gen_jwt(user: &UserCreate) -> Jwt {
     .expect("You don't appear to have the proper identity assertion key to sign the JWT.");
 
     Jwt(jwt)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validate_encrypt_with_no_output_path() -> Result<()> {
+        let maybe_output = None;
+        let infile = PathBuf::from("test");
+        let output = validate_encrypt_output_path(maybe_output, infile)?;
+        let expected_output = PathBuf::from("test.iron");
+        assert_eq!(output, expected_output);
+        Ok(())
+    }
+
+    #[test]
+    fn validate_encrypt_with_directory_output_path() -> Result<()> {
+        let maybe_output = Some(PathBuf::from("target"));
+        let infile = PathBuf::from("test");
+        let output = validate_encrypt_output_path(maybe_output, infile)?;
+        let expected_output = PathBuf::from("target/test.iron");
+        assert_eq!(output, expected_output);
+        Ok(())
+    }
+
+    #[test]
+    fn validate_encrypt_with_output_path() -> Result<()> {
+        let maybe_output = Some(PathBuf::from("test2.iron"));
+        let infile = PathBuf::from("test");
+        let output = validate_encrypt_output_path(maybe_output.clone(), infile)?;
+        assert_eq!(Some(output), maybe_output);
+        Ok(())
+    }
+
+    #[test]
+    fn validate_encrypt_with_longer_output_path() -> Result<()> {
+        let maybe_output = Some(PathBuf::from("target/debug/test2.iron"));
+        let infile = PathBuf::from("test");
+        let output = validate_encrypt_output_path(maybe_output.clone(), infile)?;
+        assert_eq!(Some(output), maybe_output);
+        Ok(())
+    }
+
+    #[test]
+    fn validate_decrypt_with_no_extension() -> Result<()> {
+        let maybe_output = None;
+        let infile = PathBuf::from("test");
+        let output = validate_decrypt_output_path(maybe_output, infile);
+        assert!(output.is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn validate_decrypt_with_unknown_extension() -> Result<()> {
+        let maybe_output = None;
+        let infile = PathBuf::from("test.whoknows");
+        let output = validate_decrypt_output_path(maybe_output, infile);
+        assert!(output.is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn validate_decrypt_with_iron_extension() -> Result<()> {
+        let maybe_output = None;
+        let infile = PathBuf::from("test.iron");
+        let output = validate_decrypt_output_path(maybe_output, infile)?;
+        let expected_output = PathBuf::from("test");
+        assert_eq!(output, expected_output);
+        Ok(())
+    }
+
+    #[test]
+    fn validate_decrypt_with_multiple_extensions() -> Result<()> {
+        let maybe_output = None;
+        let infile = PathBuf::from("test.random.extension.iron");
+        let output = validate_decrypt_output_path(maybe_output, infile)?;
+        let expected_output = PathBuf::from("test.random.extension");
+        assert_eq!(output, expected_output);
+        Ok(())
+    }
+
+    #[test]
+    fn collect_one_user_and_group() {
+        let user = UserId::unsafe_from_string("a".to_string());
+        let group = GroupId::unsafe_from_string("b".to_string());
+        let user_ids = vec![user.clone()];
+        let group_ids = vec![group.clone()];
+        let users_or_groups = collect_users_and_groups(user_ids, group_ids);
+        let expected = vec![
+            UserOrGroup::User { id: user },
+            UserOrGroup::Group { id: group },
+        ];
+        assert_eq!(users_or_groups, expected);
+    }
 }
