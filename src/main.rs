@@ -384,9 +384,9 @@ fn validate_encrypt_output_path(maybe_output: Option<PathBuf>, infile: PathBuf) 
                     .ok_or(InitAppErr("Invalid input file".to_string()))?
                     .to_os_string();
                 filename.push(".iron");
-                let mut desired_filename = desired;
-                desired_filename.push(filename);
-                desired_filename
+                let mut desired_dir = desired;
+                desired_dir.push(filename);
+                desired_dir
             } else {
                 desired
             }
