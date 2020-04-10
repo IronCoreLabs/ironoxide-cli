@@ -352,22 +352,24 @@ fn collect_users_and_groups(user_ids: &[UserId], group_ids: &[GroupId]) -> Vec<U
 /// Validate that the output path provided by the user can be used for decryption. If no path is provided,
 /// will try to infer an appropriate path for output, otherwise will return an Err.
 fn validate_decrypt_output_path(maybe_output: Option<PathBuf>, infile: PathBuf) -> Result<PathBuf> {
-    let output = maybe_output.unwrap_or({
-        let extension = infile
-            .extension()
-            .ok_or_else(|| InitAppErr("No output file given, and unable to infer.".to_string()))?;
-        if extension.to_os_string() == OsString::from("iron") {
-            let mut output_path = infile;
-            output_path.set_extension("");
-            Result::Ok(output_path)
-        } else {
-            // Unknown extension on infile
-            Result::Err(InitAppErr(
-                "No output file given, and unable to infer.".to_string(),
-            ))
-        }?
-    });
-    Ok(output)
+    match maybe_output {
+        Some(output) => Ok(output),
+        None => {
+            let extension = infile.extension().ok_or_else(|| {
+                InitAppErr("No output file given, and unable to infer.".to_string())
+            })?;
+            if extension.to_os_string() == OsString::from("iron") {
+                let mut output_path = infile;
+                output_path.set_extension("");
+                Ok(output_path)
+            } else {
+                // Unknown extension on infile
+                Err(InitAppErr(
+                    "No output file given, and unable to infer.".to_string(),
+                ))
+            }
+        }
+    }
 }
 
 /// Validate that the output path provided by the user can be used for encryption. If no path is provided,
