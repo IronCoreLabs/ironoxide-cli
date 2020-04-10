@@ -168,8 +168,8 @@ async fn main() -> Result<()> {
             let config_file = File::open(config_file_path)?;
             let config: InputConfig = serde_json::from_reader(config_file)?;
 
-            let output_file_path =
-                maybe_output_file_path.unwrap_or(PathBuf::from(format!("{}.json", user_id.id())));
+            let output_file_path = maybe_output_file_path
+                .unwrap_or_else(|| PathBuf::from(format!("{}.json", user_id.id())));
             if output_file_path.display().to_string().contains('/') {
                 Err(InitAppErr(
                     "Output file path cannot contain any of the following characters: /"
@@ -279,10 +279,10 @@ async fn main() -> Result<()> {
         } => {
             let file = std::fs::read(&infile)?;
             println!("Read in file \"{}\"", infile.display());
-            let output = validate_encrypt_output_path(maybe_output, infile)?;
-            let users_or_groups = collect_users_and_groups(users, groups);
+            let output = validate_encrypt_output_path(maybe_output, &infile)?;
+            let users_or_groups = collect_users_and_groups(&users, &groups);
             let sdk = initialize_sdk_from_file(&device_path).await?;
-            encrypt_file(sdk, file, users_or_groups, output).await?;
+            encrypt_bytes_to_file(sdk, file, users_or_groups, output).await?;
         }
         CommandLineArgs::FileDecrypt {
             filename: infile,
@@ -303,7 +303,7 @@ async fn main() -> Result<()> {
 
 /// Encrypt the provided file to the `users_or_groups`. The file will also be granted to the calling user.
 /// The bytes of the encrypted file will be written to `output_path`.
-async fn encrypt_file(
+async fn encrypt_bytes_to_file(
     sdk: IronOxide,
     file: Vec<u8>,
     users_or_groups: Vec<UserOrGroup>,
@@ -336,7 +336,7 @@ async fn encrypt_file(
 }
 
 /// Collect a vector of `UserId` and a vector of `GroupId` into a vector of `UserOrGroup`.
-fn collect_users_and_groups(user_ids: Vec<UserId>, group_ids: Vec<GroupId>) -> Vec<UserOrGroup> {
+fn collect_users_and_groups(user_ids: &[UserId], group_ids: &[GroupId]) -> Vec<UserOrGroup> {
     let mut users_or_groups = user_ids
         .iter()
         .map(|user| user.into())
@@ -353,10 +353,9 @@ fn collect_users_and_groups(user_ids: Vec<UserId>, group_ids: Vec<GroupId>) -> V
 /// will try to infer an appropriate path for output, otherwise will return an Err.
 fn validate_decrypt_output_path(maybe_output: Option<PathBuf>, infile: PathBuf) -> Result<PathBuf> {
     let output = maybe_output.unwrap_or({
-        let extension = infile.extension().ok_or(
-            // No extension on infile
-            InitAppErr("No output file given, and unable to infer.".to_string()),
-        )?;
+        let extension = infile
+            .extension()
+            .ok_or_else(|| InitAppErr("No output file given, and unable to infer.".to_string()))?;
         if extension.to_os_string() == OsString::from("iron") {
             let mut output_path = infile;
             output_path.set_extension("");
@@ -373,7 +372,10 @@ fn validate_decrypt_output_path(maybe_output: Option<PathBuf>, infile: PathBuf) 
 
 /// Validate that the output path provided by the user can be used for encryption. If no path is provided,
 /// will append ".iron" to the input filename. Returns an Err if the input file ends with "..".
-fn validate_encrypt_output_path(maybe_output: Option<PathBuf>, infile: PathBuf) -> Result<PathBuf> {
+fn validate_encrypt_output_path(
+    maybe_output: Option<PathBuf>,
+    infile: &PathBuf,
+) -> Result<PathBuf> {
     let output = match maybe_output {
         // User specified an output path.
         Some(desired) => {
@@ -381,7 +383,7 @@ fn validate_encrypt_output_path(maybe_output: Option<PathBuf>, infile: PathBuf) 
             if desired.is_dir() {
                 let mut filename = infile
                     .file_name()
-                    .ok_or(InitAppErr("Invalid input file".to_string()))?
+                    .ok_or_else(|| InitAppErr("Invalid input file".to_string()))?
                     .to_os_string();
                 filename.push(".iron");
                 let mut desired_dir = desired;
@@ -406,22 +408,22 @@ enum GroupModificationFunction {
 
 async fn modify_group(
     group_id: &GroupId,
-    user_ids: &Vec<UserId>,
+    user_ids: &[UserId],
     device_path: &PathBuf,
     modification_function: GroupModificationFunction,
 ) -> Result<()> {
     let sdk = initialize_sdk_from_file(device_path).await?;
     let modify_result = match modification_function {
-        GroupModificationFunction::AddAdmins => sdk.group_add_admins(&group_id, &user_ids),
-        GroupModificationFunction::RemoveAdmins => sdk.group_remove_admins(&group_id, &user_ids),
-        GroupModificationFunction::AddMembers => sdk.group_add_members(&group_id, &user_ids),
-        GroupModificationFunction::RemoveMembers => sdk.group_remove_members(&group_id, &user_ids),
+        GroupModificationFunction::AddAdmins => sdk.group_add_admins(group_id, user_ids),
+        GroupModificationFunction::RemoveAdmins => sdk.group_remove_admins(group_id, user_ids),
+        GroupModificationFunction::AddMembers => sdk.group_add_members(group_id, user_ids),
+        GroupModificationFunction::RemoveMembers => sdk.group_remove_members(group_id, user_ids),
     }
     .await?;
     let successes = modify_result
         .succeeded()
         .iter()
-        .map(|user| user.id())
+        .map(UserId::id)
         .collect::<Vec<_>>();
     let failures = modify_result
         .failed()
@@ -611,7 +613,7 @@ mod tests {
     fn validate_encrypt_with_no_output_path() -> Result<()> {
         let maybe_output = None;
         let infile = PathBuf::from("test");
-        let output = validate_encrypt_output_path(maybe_output, infile)?;
+        let output = validate_encrypt_output_path(maybe_output, &infile)?;
         let expected_output = PathBuf::from("test.iron");
         assert_eq!(output, expected_output);
         Ok(())
@@ -621,7 +623,7 @@ mod tests {
     fn validate_encrypt_with_directory_output_path() -> Result<()> {
         let maybe_output = Some(PathBuf::from("target"));
         let infile = PathBuf::from("test");
-        let output = validate_encrypt_output_path(maybe_output, infile)?;
+        let output = validate_encrypt_output_path(maybe_output, &infile)?;
         let expected_output = PathBuf::from("target/test.iron");
         assert_eq!(output, expected_output);
         Ok(())
@@ -631,7 +633,7 @@ mod tests {
     fn validate_encrypt_with_output_path() -> Result<()> {
         let maybe_output = Some(PathBuf::from("test2.iron"));
         let infile = PathBuf::from("test");
-        let output = validate_encrypt_output_path(maybe_output.clone(), infile)?;
+        let output = validate_encrypt_output_path(maybe_output.clone(), &infile)?;
         assert_eq!(Some(output), maybe_output);
         Ok(())
     }
@@ -640,7 +642,7 @@ mod tests {
     fn validate_encrypt_with_longer_output_path() -> Result<()> {
         let maybe_output = Some(PathBuf::from("target/debug/test2.iron"));
         let infile = PathBuf::from("test");
-        let output = validate_encrypt_output_path(maybe_output.clone(), infile)?;
+        let output = validate_encrypt_output_path(maybe_output.clone(), &infile)?;
         assert_eq!(Some(output), maybe_output);
         Ok(())
     }
@@ -689,7 +691,7 @@ mod tests {
         let group = GroupId::unsafe_from_string("b".to_string());
         let user_ids = vec![user.clone()];
         let group_ids = vec![group.clone()];
-        let users_or_groups = collect_users_and_groups(user_ids, group_ids);
+        let users_or_groups = collect_users_and_groups(&user_ids, &group_ids);
         let expected = vec![
             UserOrGroup::User { id: user },
             UserOrGroup::Group { id: group },
@@ -701,14 +703,14 @@ mod tests {
     fn collect_one_user_and_no_groups() {
         let user = UserId::unsafe_from_string("a".to_string());
         let user_ids = vec![user.clone()];
-        let users_or_groups = collect_users_and_groups(user_ids, vec![]);
+        let users_or_groups = collect_users_and_groups(&user_ids, &[]);
         let expected = vec![UserOrGroup::User { id: user }];
         assert_eq!(users_or_groups, expected);
     }
 
     #[test]
     fn collect_no_users_and_groups() {
-        let users_or_groups = collect_users_and_groups(vec![], vec![]);
+        let users_or_groups = collect_users_and_groups(&[], &[]);
         let expected = vec![];
         assert_eq!(users_or_groups, expected);
     }
