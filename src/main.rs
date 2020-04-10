@@ -282,7 +282,7 @@ async fn main() -> Result<()> {
             let output = validate_encrypt_output_path(maybe_output, &infile)?;
             let users_or_groups = collect_users_and_groups(&users, &groups);
             let sdk = initialize_sdk_from_file(&device_path).await?;
-            encrypt_bytes_to_file(sdk, file, users_or_groups, output).await?;
+            encrypt_bytes_to_file(sdk, &file, &users_or_groups, &output).await?;
         }
         CommandLineArgs::FileDecrypt {
             filename: infile,
@@ -305,13 +305,13 @@ async fn main() -> Result<()> {
 /// The bytes of the encrypted file will be written to `output_path`.
 async fn encrypt_bytes_to_file(
     sdk: IronOxide,
-    file: Vec<u8>,
-    users_or_groups: Vec<UserOrGroup>,
-    output_path: PathBuf,
+    file: &[u8],
+    users_or_groups: &[UserOrGroup],
+    output_path: &PathBuf,
 ) -> Result<()> {
-    let grants = ExplicitGrant::new(true, &users_or_groups);
+    let grants = ExplicitGrant::new(true, users_or_groups);
     let opts = DocumentEncryptOpts::new(None, None, EitherOrBoth::Left(grants));
-    let encrypt_result = sdk.document_encrypt(&file, &opts).await?;
+    let encrypt_result = sdk.document_encrypt(file, &opts).await?;
     let successes = encrypt_result
         .grants()
         .iter()
