@@ -1,17 +1,22 @@
 name: ironoxide-cli
 
-on:
-  push:
-    branches:
-      - master
-  pull_request:
+on: push
 
 jobs:
-  check:
-    name: Check
+  test:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
+      # Work around https://github.com/actions/cache/issues/133#issuecomment-599102035
+      - run: sudo chown -R $(whoami):$(id -ng) ~/.cargo/
+        name: Fix perms on .cargo so we can restore the cache.
+      - name: Restore rust cache
+        uses: actions/cache@v1
+        with:
+          key: ${{ github.workflow }}-rust-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ github.workflow }}-rust-
+          path: ~/.cargo
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -19,7 +24,7 @@ jobs:
           override: true
       - uses: actions-rs/cargo@v1
         with:
-          command: check
+          command: test
   fmt:
     name: Rustfmt
     runs-on: ubuntu-18.04
@@ -35,3 +40,12 @@ jobs:
         with:
           command: fmt
           args: --all -- --check
+
+  security:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Rust security audit
+        uses: actions-rs/audit-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
