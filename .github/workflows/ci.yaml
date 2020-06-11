@@ -4,29 +4,24 @@ on: push
 
 jobs:
   test:
-    runs-on: ubuntu-18.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-18.04, macos-10.15, windows-2019]
     steps:
       - uses: actions/checkout@v2
-      # Work around https://github.com/actions/cache/issues/133#issuecomment-599102035
-      - run: sudo chown -R $(whoami):$(id -ng) ~/.cargo/
-        name: Fix perms on .cargo so we can restore the cache.
-      - name: Restore rust cache
-        uses: actions/cache@v1
+      - uses: actions/cache@v2
         with:
-          key: ${{ github.workflow }}-rust-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            ${{ github.workflow }}-rust-
-          path: ~/.cargo
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-  fmt:
-    name: Rustfmt
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ matrix.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Test
+        run: cargo test
+
+  cargo-fmt:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
@@ -35,20 +30,8 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - run: rustup component add rustfmt
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+          components: rustfmt
+      - run: cargo fmt --all -- --check
       - name: Cancel workflow
         if: failure()
         uses: andymckay/cancel-action@0.2
-
-  security:
-    runs-on: ubuntu-18.04
-    steps:
-      - uses: actions/checkout@v2
-      - name: Rust security audit
-        uses: actions-rs/audit-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
