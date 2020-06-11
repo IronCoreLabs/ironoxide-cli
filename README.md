@@ -20,7 +20,7 @@ An IronCore Config file can be downloaded from the admin console on creation of 
 {
   "projectId": YOUR_PROJECT_ID,
   "segmentId": "YOUR_SEGMENT_ID",
-  "identityAssertionKeyId": YOUR_IDENTITY_ASSERION_KEY_ID
+  "identityAssertionKeyId": YOUR_IDENTITY_ASSERTION_KEY_ID
 }
 ```
 
