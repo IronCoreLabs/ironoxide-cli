@@ -1,6 +1,6 @@
 use ironoxide::prelude::*;
 use jsonwebtoken::{Algorithm, EncodingKey, Header};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::{
     convert::TryFrom,
     ffi::OsString,
@@ -445,7 +445,6 @@ async fn initialize_sdk_from_file(device_path: &PathBuf) -> Result<IronOxide> {
     }
 }
 
-struct Jwt(String);
 struct Password(String);
 #[derive(Deserialize)]
 struct SegmentId(String);
@@ -519,7 +518,7 @@ async fn create_user_and_device(
     };
     let jwt = gen_jwt(&user_create)?;
     let user_verify =
-        IronOxide::user_verify(&jwt.0, IronOxideConfig::default().sdk_operation_timeout).await?;
+        IronOxide::user_verify(&jwt, IronOxideConfig::default().sdk_operation_timeout).await?;
     if user_verify.is_some() {
         println!("Found user \"{}\"", &user_id.id());
     } else {
@@ -560,7 +559,7 @@ struct UserCreate<'a> {
 
 async fn gen_device(jwt: &Jwt, password: &Password) -> Result<DeviceContext> {
     Ok(IronOxide::generate_new_device(
-        &jwt.0,
+        &jwt,
         &password.0,
         &ironoxide::user::DeviceCreateOpts::default(),
         IronOxideConfig::default().sdk_operation_timeout,
@@ -571,22 +570,12 @@ async fn gen_device(jwt: &Jwt, password: &Password) -> Result<DeviceContext> {
 
 async fn gen_user(jwt: &Jwt, password: &Password) -> Result<UserCreateResult> {
     Ok(IronOxide::user_create(
-        &jwt.0,
+        &jwt,
         &password.0,
         &ironoxide::user::UserCreateOpts::default(),
         IronOxideConfig::default().sdk_operation_timeout,
     )
     .await?)
-}
-
-#[derive(Serialize, Deserialize)]
-struct Claims {
-    sub: String,
-    pid: usize,
-    sid: String,
-    kid: usize,
-    iat: u64,
-    exp: u64,
 }
 
 fn gen_jwt(user: &UserCreate) -> Result<Jwt> {
@@ -595,7 +584,7 @@ fn gen_jwt(user: &UserCreate) -> Result<Jwt> {
         .duration_since(UNIX_EPOCH)
         .expect("Time before epoch? Something's wrong.")
         .as_secs();
-    let my_claims = Claims {
+    let my_claims = JwtClaims {
         sub: user.user_id.id().to_owned(),
         pid: user.project_id.0,
         sid: user.seg_id.0.clone(),
@@ -607,8 +596,7 @@ fn gen_jwt(user: &UserCreate) -> Result<Jwt> {
     let pem = std::fs::read_to_string(user.pem_file)?;
     let key = EncodingKey::from_ec_pem(pem.as_bytes())?;
     let jwt_str = jsonwebtoken::encode(&header, &my_claims, &key)?;
-
-    Ok(Jwt(jwt_str))
+    Ok(Jwt::new(&jwt_str)?)
 }
 
 #[cfg(test)]
