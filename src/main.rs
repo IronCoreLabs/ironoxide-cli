@@ -1,11 +1,5 @@
-use ironoxide::{
-    config::IronOxideConfig,
-    document::{DocumentEncryptOpts, DocumentOps, ExplicitGrant, UserOrGroup},
-    group::{GroupCreateOpts, GroupId, GroupOps},
-    user::{UserCreateResult, UserId, UserOps},
-    DeviceContext, IronOxide, IronOxideErr,
-};
-use itertools::EitherOrBoth;
+use ironoxide::prelude::*;
+use jsonwebtoken::{Algorithm, EncodingKey, Header};
 use serde::Deserialize;
 use std::{
     convert::TryFrom,
@@ -309,8 +303,8 @@ async fn encrypt_bytes_to_file(
     users_or_groups: &[UserOrGroup],
     output_path: &PathBuf,
 ) -> Result<()> {
-    let grants = ExplicitGrant::new(true, users_or_groups);
-    let opts = DocumentEncryptOpts::new(None, None, EitherOrBoth::Left(grants));
+    let opts =
+        DocumentEncryptOpts::with_explicit_grants(None, None, true, users_or_groups.to_vec());
     let encrypt_result = sdk.document_encrypt(file, &opts).await?;
     let successes = encrypt_result
         .grants()
@@ -451,7 +445,6 @@ async fn initialize_sdk_from_file(device_path: &PathBuf) -> Result<IronOxide> {
     }
 }
 
-struct Jwt(String);
 struct Password(String);
 #[derive(Deserialize)]
 struct SegmentId(String);
@@ -496,6 +489,11 @@ impl From<std::io::Error> for InitAppErr {
         Self(e.to_string())
     }
 }
+impl From<jsonwebtoken::errors::Error> for InitAppErr {
+    fn from(e: jsonwebtoken::errors::Error) -> Self {
+        Self(e.to_string())
+    }
+}
 
 // Whenever an InitAppError happens, the default derived debug output is ugly and convoluted,
 // so using the Display for the internal String is cleaner and easier to understand
@@ -518,9 +516,9 @@ async fn create_user_and_device(
         pem_file: path_to_pem,
         user_id,
     };
-    let jwt = gen_jwt(&user_create);
+    let jwt = gen_jwt(&user_create)?;
     let user_verify =
-        IronOxide::user_verify(&jwt.0, IronOxideConfig::default().sdk_operation_timeout).await?;
+        IronOxide::user_verify(&jwt, IronOxideConfig::default().sdk_operation_timeout).await?;
     if user_verify.is_some() {
         println!("Found user \"{}\"", &user_id.id());
     } else {
@@ -561,7 +559,7 @@ struct UserCreate<'a> {
 
 async fn gen_device(jwt: &Jwt, password: &Password) -> Result<DeviceContext> {
     Ok(IronOxide::generate_new_device(
-        &jwt.0,
+        &jwt,
         &password.0,
         &ironoxide::user::DeviceCreateOpts::default(),
         IronOxideConfig::default().sdk_operation_timeout,
@@ -572,7 +570,7 @@ async fn gen_device(jwt: &Jwt, password: &Password) -> Result<DeviceContext> {
 
 async fn gen_user(jwt: &Jwt, password: &Password) -> Result<UserCreateResult> {
     Ok(IronOxide::user_create(
-        &jwt.0,
+        &jwt,
         &password.0,
         &ironoxide::user::UserCreateOpts::default(),
         IronOxideConfig::default().sdk_operation_timeout,
@@ -580,31 +578,25 @@ async fn gen_user(jwt: &Jwt, password: &Password) -> Result<UserCreateResult> {
     .await?)
 }
 
-fn gen_jwt(user: &UserCreate) -> Jwt {
+fn gen_jwt(user: &UserCreate) -> Result<Jwt> {
     let start = SystemTime::now();
     let iat_seconds = start
         .duration_since(UNIX_EPOCH)
         .expect("Time before epoch? Something's wrong.")
         .as_secs();
-
-    let jwt_header = serde_json::json!({});
-    let jwt_payload = serde_json::json!({
-        "pid" : user.project_id.0,
-        "sid" : user.seg_id.0,
-        "kid" : user.iak.0,
-        "iat" : iat_seconds,
-        "exp" : iat_seconds + 120,
-        "sub" : user.user_id
-    });
-    let jwt = frank_jwt::encode(
-        jwt_header,
-        user.pem_file,
-        &jwt_payload,
-        frank_jwt::Algorithm::ES256,
-    )
-    .expect("You don't appear to have the proper identity assertion key to sign the JWT.");
-
-    Jwt(jwt)
+    let my_claims = JwtClaims {
+        sub: user.user_id.id().to_owned(),
+        pid: user.project_id.0,
+        sid: user.seg_id.0.clone(),
+        kid: user.iak.0,
+        iat: iat_seconds,
+        exp: iat_seconds + 120,
+    };
+    let header = Header::new(Algorithm::ES256);
+    let pem = std::fs::read_to_string(user.pem_file)?;
+    let key = EncodingKey::from_ec_pem(pem.as_bytes())?;
+    let jwt_str = jsonwebtoken::encode(&header, &my_claims, &key)?;
+    Ok(Jwt::new(&jwt_str)?)
 }
 
 #[cfg(test)]
