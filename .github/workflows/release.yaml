@@ -26,7 +26,7 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: release-${{ matrix.os }}
-          path: target/release/ironoxide-cli-${{ matrix.os }}
+          path: target/release/ironoxide-cli-${{ matrix.os }}${{ matrix.ext }}
   # release:
   #   runs-on: ubuntu-18.04
   #   needs: build
