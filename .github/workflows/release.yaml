@@ -10,6 +10,9 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-18.04, macos-10.15, windows-2019]
+        include:
+          - os: windows-2019
+            ext: .exe
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
@@ -17,12 +20,12 @@ jobs:
         run: cargo build --release
       - name: Package release artifacts
         working-directory: target/release
-        run: mv ironoxide-cli ironoxide-cli-${{ matrix.os }}
+        run: mv ironoxide-cli${{ matrix.ext }} ironoxide-cli-${{ matrix.os }}${{ matrix.ext }}
       - name: Upload artifacts
         uses: actions/upload-artifact@v1
         with:
           name: release-${{ matrix.os }}
-          path: target/release/ironoxide-cli-${{ matrix.os }}
+          path: target/release/ironoxide-cli-${{ matrix.os }}${{ matrix.ext }}
 
   release:
     runs-on: ubuntu-18.04
@@ -107,7 +110,7 @@ jobs:
           path: release/windows-2019
       - name: Sign artifact for windows-2019
         run: |
-          gpg --batch --detach-sign -a release/windows-2019/ironoxide-cli-windows-2019	
+          gpg --batch --detach-sign -a release/windows-2019/ironoxide-cli-windows-2019
           gpg --batch --verify release/windows-2019/ironoxide-cli-windows-2019.asc release/windows-2019/ironoxide-cli-windows-2019
       - name: Upload artifact for windows-2019
         uses: actions/upload-release-asset@v1
