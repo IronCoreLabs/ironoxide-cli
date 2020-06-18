@@ -111,7 +111,7 @@ jobs:
       - name: Sign artifact for windows-2019
         run: |
           gpg --batch --detach-sign -a release/windows-2019/ironoxide-cli-windows-2019.exe
-          gpg --batch --verify release/windows-2019/ironoxide-cli-windows-2019.asc release/windows-2019/ironoxide-cli-windows-2019.exe
+          gpg --batch --verify release/windows-2019/ironoxide-cli-windows-2019.exe.asc release/windows-2019/ironoxide-cli-windows-2019.exe
       - name: Upload artifact for windows-2019
         uses: actions/upload-release-asset@v1
         env:
@@ -127,6 +127,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.release.outputs.upload_url }}
-          asset_path: release/windows-2019/ironoxide-cli-windows-2019.asc
-          asset_name: ironoxide-cli-windows-2019.asc
+          asset_path: release/windows-2019/ironoxide-cli-windows-2019.exe.asc
+          asset_name: ironoxide-cli-windows-2019.exe.asc
           asset_content_type: application/pgp-signature
