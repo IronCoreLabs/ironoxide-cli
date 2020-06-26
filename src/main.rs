@@ -561,7 +561,7 @@ async fn gen_device(jwt: &Jwt, password: &Password) -> Result<DeviceContext> {
     Ok(IronOxide::generate_new_device(
         &jwt,
         &password.0,
-        &ironoxide::user::DeviceCreateOpts::default(),
+        &ironoxide::user::DeviceCreateOpts::with_number_of_uses(4), //TODO hardcoded value
         IronOxideConfig::default().sdk_operation_timeout,
     )
     .await?
