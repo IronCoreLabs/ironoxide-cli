@@ -597,9 +597,9 @@ dependencies = [
 
 [[package]]
 name = "ironoxide"
-version = "0.23.0"
+version = "0.23.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e3c02814c7402333edfbd029f9c193d6c685f05924fc4015205107bae30c04d"
+checksum = "f5c50d1fa6531fa2a83b6927074d1390505b7a3cd3eef44126dceef03bd350b2"
 dependencies = [
  "async-trait",
  "base64 0.12.2",
@@ -670,9 +670,9 @@ dependencies = [
 
 [[package]]
 name = "jsonwebtoken"
-version = "7.1.2"
+version = "7.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1f325ae57ddcf609f02d891486ce740f5bbd0cc3e93f9bffaacdf6594b21404"
+checksum = "afabcc15e437a6484fc4f12d0fd63068fe457bf93f1c148d3d9649c60b103f32"
 dependencies = [
  "base64 0.12.2",
  "pem",
@@ -1524,9 +1524,9 @@ dependencies = [
 
 [[package]]
 name = "vec1"
-version = "1.4.0"
+version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2ad2a3844cc028661fe02ab1fa64c117ce726ed268d0b93a56d8c2d5a96f961"
+checksum = "f2fffd117bafd8d50c625cce64efde70f416ce6d38f78104035a0913cf15fe97"
 
 [[package]]
 name = "vec_map"
