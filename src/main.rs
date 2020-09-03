@@ -591,7 +591,7 @@ fn gen_jwt(user: &UserCreate) -> Result<Jwt> {
         kid: user.iak.0,
         iat: iat_seconds,
         exp: iat_seconds + 120,
-        uid: None
+        uid: None,
     };
     let header = Header::new(Algorithm::ES256);
     let pem = std::fs::read_to_string(user.pem_file)?;
