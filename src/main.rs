@@ -449,9 +449,9 @@ struct Password(String);
 #[derive(Deserialize)]
 struct SegmentId(String);
 #[derive(Deserialize)]
-struct ProjectId(usize);
+struct ProjectId(u32);
 #[derive(Deserialize)]
-struct IdentityAssertionKeyId(usize);
+struct IdentityAssertionKeyId(u32);
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -591,6 +591,7 @@ fn gen_jwt(user: &UserCreate) -> Result<Jwt> {
         kid: user.iak.0,
         iat: iat_seconds,
         exp: iat_seconds + 120,
+        uid: None
     };
     let header = Header::new(Algorithm::ES256);
     let pem = std::fs::read_to_string(user.pem_file)?;
