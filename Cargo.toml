@@ -5,13 +5,13 @@ authors = ["IronCore Labs <info@ironcorelabs.com>"]
 edition = "2018"
 
 [dependencies]
-ironoxide = { version = "~0.25", features = ["tls-rustls"], default-features = false }
-jsonwebtoken = "~7.2"
-serde = { version = "~1.0", features = ["derive"] }
-serde_json = "~1.0"
-structopt = "~0.3"
-tokio = { version = "~1.0.3", features = ["rt-multi-thread", "macros"] }
-futures = "~0.3"
+ironoxide = { version = "0.25", features = ["tls-rustls"], default-features = false }
+jsonwebtoken = "7.2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+structopt = "0.3"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+futures = "0.3"
 
 [profile.dev.package."*"]
 opt-level = 3
