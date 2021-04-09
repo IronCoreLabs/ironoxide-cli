@@ -22,7 +22,7 @@ jobs:
         working-directory: target/release
         run: mv ironoxide-cli${{ matrix.ext }} ironoxide-cli-${{ matrix.os }}${{ matrix.ext }}
       - name: Upload artifacts
-        uses: actions/upload-artifact@v2.2.2
+        uses: actions/upload-artifact@v2
         with:
           name: release-${{ matrix.os }}
           path: target/release/ironoxide-cli-${{ matrix.os }}${{ matrix.ext }}
@@ -48,7 +48,7 @@ jobs:
           release_name: Version ${{ github.ref }}
 
       - name: Download release artifacts from ubuntu-18.04
-        uses: actions/download-artifact@v2.0.8
+        uses: actions/download-artifact@v2
         with:
           name: release-ubuntu-18.04
           path: release/ubuntu-18.04
@@ -81,7 +81,7 @@ jobs:
           asset_content_type: application/pgp-signature
 
       - name: Download release artifacts from macos-10.15
-        uses: actions/download-artifact@v2.0.8
+        uses: actions/download-artifact@v2
         with:
           name: release-macos-10.15
           path: release/macos-10.15
@@ -114,7 +114,7 @@ jobs:
           asset_content_type: application/pgp-signature
 
       - name: Download release artifacts from windows-2019
-        uses: actions/download-artifact@v2.0.8
+        uses: actions/download-artifact@v2
         with:
           name: release-windows-2019
           path: release/windows-2019
