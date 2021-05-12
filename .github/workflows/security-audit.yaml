@@ -26,6 +26,6 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: cargo install cargo-audit
       - name: Run audit checker
-        uses: actions-rs/audit-check@v1
+        uses: actions-rs/audit-check@v1.2.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
