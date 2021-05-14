@@ -540,9 +540,9 @@ checksum = "47be2f14c678be2fdcab04ab1171db51b2762ce6f0a8ee87c8dd4a04ed216135"
 
 [[package]]
 name = "ironoxide"
-version = "0.25.1"
+version = "0.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "123e2cc926b448071afa64339e893c837e84aecf9a9cbf2e44ad82573cd41fc8"
+checksum = "82d5635f060dcac9f0756754cdabe42e2b9d0db75e4e5e16129270239108762f"
 dependencies = [
  "async-trait",
  "base64 0.13.0",
@@ -559,7 +559,6 @@ dependencies = [
  "percent-encoding",
  "protobuf",
  "protobuf-codegen-pure",
- "publicsuffix",
  "quick-error",
  "rand",
  "rand_chacha",
@@ -874,16 +873,6 @@ checksum = "1f239d71417bdc5f8d83c07aeb265f911346e5540a1a6c4285f9c3d1966ed6e3"
 dependencies = [
  "protobuf",
  "protobuf-codegen",
-]
-
-[[package]]
-name = "publicsuffix"
-version = "1.5.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dfe62f914117aacd6c015acc535085fc18c38efd6848cc23448f99808ec25edb"
-dependencies = [
- "idna",
- "url",
 ]
 
 [[package]]
