@@ -542,9 +542,9 @@ checksum = "47be2f14c678be2fdcab04ab1171db51b2762ce6f0a8ee87c8dd4a04ed216135"
 
 [[package]]
 name = "ironoxide"
-version = "0.25.2"
+version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82d5635f060dcac9f0756754cdabe42e2b9d0db75e4e5e16129270239108762f"
+checksum = "edbe2c5385dabc5c0ad3b9fbfb92e79ccdfeb21bd3b12164dfc3c2ceb2b363c8"
 dependencies = [
  "async-trait",
  "base64 0.13.0",
