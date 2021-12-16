@@ -1,12 +1,8 @@
 name: Security Audit
 
-# Run daily and also when Cargo.toml changes
 on:
   schedule:
     - cron: "0 8 * * *" # 8AM UTC, 3PM MST
-  push:
-    paths:
-      - "**/Cargo.toml"
 
 jobs:
   security-audit:
