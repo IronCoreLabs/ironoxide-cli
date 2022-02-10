@@ -63,6 +63,8 @@ jobs:
           gpg --batch --verify release/ubuntu-18.04/ironoxide-cli-ubuntu-18.04.asc release/ubuntu-18.04/ironoxide-cli-ubuntu-18.04
       - name: Upload artifact for ubuntu-18.04
         run: gh release upload ${{ github.ref }} release/ubuntu-18.04/ironoxide-cli-ubuntu-18.04 release/ubuntu-18.04/ironoxide-cli-ubuntu-18.04.asc --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download release artifacts from macos-10.15
         uses: actions/download-artifact@v2
@@ -80,6 +82,8 @@ jobs:
           gpg --batch --verify release/macos-10.15/ironoxide-cli-macos-10.15.asc release/macos-10.15/ironoxide-cli-macos-10.15
       - name: Upload artifact for macos-10.15
         run: gh release upload ${{ github.ref }} release/macos-10.15/ironoxide-cli-macos-10.15 release/macos-10.15/ironoxide-cli-macos-10.15.asc --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download release artifacts from windows-2019
         uses: actions/download-artifact@v2
@@ -97,3 +101,5 @@ jobs:
           gpg --batch --verify release/windows-2019/ironoxide-cli-windows-2019.exe.asc release/windows-2019/ironoxide-cli-windows-2019.exe
       - name: Upload artifact for windows-2019
         run: gh release upload ${{ github.ref }} release/windows-2019/ironoxide-cli-windows-2019.exe release/windows-2019/ironoxide-cli-windows-2019.exe.asc --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
