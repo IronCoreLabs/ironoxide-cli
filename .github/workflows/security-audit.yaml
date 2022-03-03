@@ -8,7 +8,7 @@ jobs:
   security-audit:
     runs-on: ubuntu-18.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Search for cargo-audit to get latest version
         id: audit-search
         run: echo ::set-output name=audit-version::$(cargo search cargo-audit --limit 1 | grep cargo-audit)
