@@ -33,7 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Decrypt PGP key
-        uses: IronCoreLabs/ironhide-actions/decrypt@v1
+        uses: IronCoreLabs/ironhide-actions/decrypt@v2
         with:
           keys: ${{ secrets.IRONHIDE_KEYS }}
           input: .github/signing-key.asc.iron
