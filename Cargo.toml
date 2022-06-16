@@ -5,7 +5,7 @@ authors = ["IronCore Labs <info@ironcorelabs.com>"]
 edition = "2018"
 
 [dependencies]
-ironoxide = { version = "1.0.0", default-features = false, features = ["tls-rustls"]}
+ironoxide = { version = "1.1.0", default-features = false, features = ["tls-rustls"]}
 jsonwebtoken = "8.1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
