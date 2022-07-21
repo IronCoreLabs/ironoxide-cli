@@ -9,7 +9,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-18.04, macos-10.15, windows-2019]
+        os: [ubuntu-18.04, macos-11, windows-2019]
         include:
           - os: windows-2019
             ext: .exe
@@ -66,22 +66,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download release artifacts from macos-10.15
+      - name: Download release artifacts from macos-11
         uses: actions/download-artifact@v3
         with:
-          name: release-macos-10.15
-          path: release/macos-10.15
+          name: release-macos-11
+          path: release/macos-11
       - name: Delete artifact
         uses: geekyeggo/delete-artifact@v1
         with:
-          name: release-macos-10.15
+          name: release-macos-11
           failOnError: false
-      - name: Sign artifact for macos-10.15
+      - name: Sign artifact for macos-11
         run: |
-          gpg --batch --detach-sign -a release/macos-10.15/ironoxide-cli-macos-10.15
-          gpg --batch --verify release/macos-10.15/ironoxide-cli-macos-10.15.asc release/macos-10.15/ironoxide-cli-macos-10.15
-      - name: Upload artifact for macos-10.15
-        run: gh release upload ${{ github.ref }} release/macos-10.15/ironoxide-cli-macos-10.15 release/macos-10.15/ironoxide-cli-macos-10.15.asc --clobber
+          gpg --batch --detach-sign -a release/macos-11/ironoxide-cli-macos-11
+          gpg --batch --verify release/macos-11/ironoxide-cli-macos-11.asc release/macos-11/ironoxide-cli-macos-11
+      - name: Upload artifact for macos-11
+        run: gh release upload ${{ github.ref }} release/macos-11/ironoxide-cli-macos-11 release/macos-11/ironoxide-cli-macos-11.asc --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
