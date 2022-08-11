@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-18.04, macos-11, windows-2019]
+        os: [ubuntu-22.04, macos-11, windows-2019]
     steps:
       - uses: actions/checkout@v3
       - uses: actions/cache@v3
@@ -25,7 +25,7 @@ jobs:
         run: cargo test
 
   cargo-fmt:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1

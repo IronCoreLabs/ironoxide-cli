@@ -9,7 +9,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-18.04, macos-11, windows-2019]
+        os: [ubuntu-22.04, macos-11, windows-2019]
         include:
           - os: windows-2019
             ext: .exe
@@ -28,7 +28,7 @@ jobs:
           path: target/release/ironoxide-cli-${{ matrix.os }}${{ matrix.ext }}
 
   release:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     needs: build
     steps:
       - uses: actions/checkout@v3
@@ -47,22 +47,22 @@ jobs:
           tag_name: ${{ github.ref }}
           release_name: Version ${{ github.ref }}
 
-      - name: Download release artifacts from ubuntu-18.04
+      - name: Download release artifacts from ubuntu-22.04
         uses: actions/download-artifact@v3
         with:
-          name: release-ubuntu-18.04
-          path: release/ubuntu-18.04
+          name: release-ubuntu-22.04
+          path: release/ubuntu-22.04
       - name: Delete artifact
         uses: geekyeggo/delete-artifact@v1
         with:
-          name: release-ubuntu-18.04
+          name: release-ubuntu-22.04
           failOnError: false
-      - name: Sign artifact for ubuntu-18.04
+      - name: Sign artifact for ubuntu-22.04
         run: |
-          gpg --batch --detach-sign -a release/ubuntu-18.04/ironoxide-cli-ubuntu-18.04
-          gpg --batch --verify release/ubuntu-18.04/ironoxide-cli-ubuntu-18.04.asc release/ubuntu-18.04/ironoxide-cli-ubuntu-18.04
-      - name: Upload artifact for ubuntu-18.04
-        run: gh release upload ${{ github.ref }} release/ubuntu-18.04/ironoxide-cli-ubuntu-18.04 release/ubuntu-18.04/ironoxide-cli-ubuntu-18.04.asc --clobber
+          gpg --batch --detach-sign -a release/ubuntu-22.04/ironoxide-cli-ubuntu-22.04
+          gpg --batch --verify release/ubuntu-22.04/ironoxide-cli-ubuntu-22.04.asc release/ubuntu-22.04/ironoxide-cli-ubuntu-22.04
+      - name: Upload artifact for ubuntu-22.04
+        run: gh release upload ${{ github.ref }} release/ubuntu-22.04/ironoxide-cli-ubuntu-22.04 release/ubuntu-22.04/ironoxide-cli-ubuntu-22.04.asc --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
