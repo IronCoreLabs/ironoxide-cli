@@ -586,12 +586,16 @@ fn gen_jwt(user: &UserCreate) -> Result<Jwt> {
         .as_secs();
     let my_claims = JwtClaims {
         sub: user.user_id.id().to_owned(),
-        pid: user.project_id.0,
-        sid: user.seg_id.0.clone(),
-        kid: user.iak.0,
+        pid: Some(user.project_id.0),
+        sid: Some(user.seg_id.0.clone()),
+        kid: Some(user.iak.0),
         iat: iat_seconds,
         exp: iat_seconds + 120,
         uid: None,
+        prefixed_pid: None,
+        prefixed_sid: None,
+        prefixed_kid: None,
+        prefixed_uid: None,
     };
     let header = Header::new(Algorithm::ES256);
     let pem = std::fs::read_to_string(user.pem_file)?;
