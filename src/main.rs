@@ -3,10 +3,9 @@ use jsonwebtoken::{Algorithm, EncodingKey, Header};
 use serde::Deserialize;
 use std::{
     convert::TryFrom,
-    ffi::OsString,
     fmt,
     fs::File,
-    path::PathBuf,
+    path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
 use structopt::StructOpt;
@@ -181,11 +180,8 @@ async fn main() -> Result<()> {
                 create_user_and_device(&config, &iak_file_path, &user_id, &password).await?;
             serde_json::to_writer_pretty(File::create(&output_file_path)?, &device_context)?;
             println!(
-                "{}",
-                format!(
-                    "Outputting device context to \"{}\"",
-                    output_file_path.display()
-                )
+                "Outputting device context to \"{}\"",
+                output_file_path.display()
             );
         }
         CommandLineArgs::GroupCreate {
@@ -352,7 +348,7 @@ fn validate_decrypt_output_path(maybe_output: Option<PathBuf>, infile: PathBuf) 
             let extension = infile.extension().ok_or_else(|| {
                 InitAppErr("No output file given, and unable to infer.".to_string())
             })?;
-            if extension.to_os_string() == OsString::from("iron") {
+            if extension.to_os_string() == *"iron" {
                 let mut output_path = infile;
                 output_path.set_extension("");
                 Ok(output_path)
@@ -368,10 +364,7 @@ fn validate_decrypt_output_path(maybe_output: Option<PathBuf>, infile: PathBuf) 
 
 /// Validate that the output path provided by the user can be used for encryption. If no path is provided,
 /// will append ".iron" to the input filename. Returns an Err if the input file ends with "..".
-fn validate_encrypt_output_path(
-    maybe_output: Option<PathBuf>,
-    infile: &PathBuf,
-) -> Result<PathBuf> {
+fn validate_encrypt_output_path(maybe_output: Option<PathBuf>, infile: &Path) -> Result<PathBuf> {
     let output = match maybe_output {
         // User specified an output path.
         Some(desired) => {
@@ -559,7 +552,7 @@ struct UserCreate<'a> {
 
 async fn gen_device(jwt: &Jwt, password: &Password) -> Result<DeviceContext> {
     Ok(IronOxide::generate_new_device(
-        &jwt,
+        jwt,
         &password.0,
         &ironoxide::user::DeviceCreateOpts::default(),
         IronOxideConfig::default().sdk_operation_timeout,
@@ -570,7 +563,7 @@ async fn gen_device(jwt: &Jwt, password: &Password) -> Result<DeviceContext> {
 
 async fn gen_user(jwt: &Jwt, password: &Password) -> Result<UserCreateResult> {
     Ok(IronOxide::user_create(
-        &jwt,
+        jwt,
         &password.0,
         &ironoxide::user::UserCreateOpts::default(),
         IronOxideConfig::default().sdk_operation_timeout,
@@ -621,7 +614,7 @@ mod tests {
     #[test]
     fn validate_encrypt_with_directory_output_path() -> Result<()> {
         let maybe_output = Some(PathBuf::from("target"));
-        let infile = PathBuf::from("test");
+        let infile = Path::new("test");
         let output = validate_encrypt_output_path(maybe_output, &infile)?;
         let expected_output = PathBuf::from("target/test.iron");
         assert_eq!(output, expected_output);
