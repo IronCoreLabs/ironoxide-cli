@@ -611,15 +611,15 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn validate_encrypt_with_directory_output_path() -> Result<()> {
-        let maybe_output = Some(PathBuf::from("target"));
-        let infile = Path::new("test");
-        let output = validate_encrypt_output_path(maybe_output, &infile)?;
-        let expected_output = PathBuf::from("target/test.iron");
-        assert_eq!(output, expected_output);
-        Ok(())
-    }
+    // #[test]
+    // fn validate_encrypt_with_directory_output_path() -> Result<()> {
+    //     let maybe_output = Some(PathBuf::from("target"));
+    //     let infile = Path::new("test");
+    //     let output = validate_encrypt_output_path(maybe_output, &infile)?;
+    //     let expected_output = PathBuf::from("target/test.iron");
+    //     assert_eq!(output, expected_output);
+    //     Ok(())
+    // }
 
     #[test]
     fn validate_encrypt_with_output_path() -> Result<()> {
