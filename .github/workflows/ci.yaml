@@ -19,10 +19,17 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
           key: ${{ matrix.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Test
-        run: cargo test
+      - name: Install Nix
+        uses: cachix/install-nix-action@v17
+
+      - name: Install Cachix
+        uses: cachix/cachix-action@v10
+        with:
+          name: ironoxide-cli
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Check that workflows are up to date
+        run: 'nix build .#ci'
 
   cargo-fmt:
     runs-on: ubuntu-22.04
