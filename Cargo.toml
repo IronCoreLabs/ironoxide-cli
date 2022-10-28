@@ -12,6 +12,7 @@ serde_json = "1.0"
 structopt = "0.3"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 futures = "0.3"
+smallvec = "1.9.0"
 
 [profile.dev.package."*"]
 opt-level = 3
