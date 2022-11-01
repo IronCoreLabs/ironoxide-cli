@@ -826,6 +826,7 @@ in
       futures = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.25" { inherit profileName; };
       ironoxide = rustPackages."registry+https://github.com/rust-lang/crates.io-index".ironoxide."2.0.0" { inherit profileName; };
       jsonwebtoken = rustPackages."registry+https://github.com/rust-lang/crates.io-index".jsonwebtoken."8.1.1" { inherit profileName; };
+      lazy_static = rustPackages."registry+https://github.com/rust-lang/crates.io-index".lazy_static."1.4.0" { inherit profileName; };
       serde = rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde."1.0.147" { inherit profileName; };
       serde_json = rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde_json."1.0.87" { inherit profileName; };
       structopt = rustPackages."registry+https://github.com/rust-lang/crates.io-index".structopt."0.3.26" { inherit profileName; };
