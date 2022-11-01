@@ -15,10 +15,10 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           token: ${{ secrets.WORKFLOW_PAT }}
       - uses: cachix/install-nix-action@v17
+      - uses: cachix/cachix-action@v10
         with:
-          extra_nix_config: |
-            trusted-public-keys = nixcache:8KKuGz95Pk4UJ5W/Ni+pN+v+LDTkMMFV4yrGmAYgkDg= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
-            substituters = https://cache.nixos.org/
+          name: ironoxide-cli
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - run: echo yes | nix run github:cargo2nix/cargo2nix -- -f
       - run: nix run 'github:NixOS/nixpkgs#statix' fix
       - run: nix fmt
