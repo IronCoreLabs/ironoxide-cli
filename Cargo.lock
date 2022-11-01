@@ -572,6 +572,7 @@ dependencies = [
  "futures",
  "ironoxide",
  "jsonwebtoken",
+ "lazy_static",
  "serde",
  "serde_json",
  "structopt",
