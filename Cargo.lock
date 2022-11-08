@@ -575,6 +575,7 @@ dependencies = [
  "lazy_static",
  "serde",
  "serde_json",
+ "stop-words",
  "structopt",
  "tokio",
  "unicode-segmentation",
@@ -1160,6 +1161,15 @@ name = "spin"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
+
+[[package]]
+name = "stop-words"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b251c7ff1e2170ea6b8437da108af444194381dd658c738d763c4ead03acd88d"
+dependencies = [
+ "serde_json",
+]
 
 [[package]]
 name = "strsim"

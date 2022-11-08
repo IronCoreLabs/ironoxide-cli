@@ -829,6 +829,7 @@ in
       lazy_static = rustPackages."registry+https://github.com/rust-lang/crates.io-index".lazy_static."1.4.0" { inherit profileName; };
       serde = rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde."1.0.147" { inherit profileName; };
       serde_json = rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde_json."1.0.87" { inherit profileName; };
+      stop_words = rustPackages."registry+https://github.com/rust-lang/crates.io-index".stop-words."0.7.0" { inherit profileName; };
       structopt = rustPackages."registry+https://github.com/rust-lang/crates.io-index".structopt."0.3.26" { inherit profileName; };
       tokio = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tokio."1.21.2" { inherit profileName; };
       unicode_segmentation = rustPackages."registry+https://github.com/rust-lang/crates.io-index".unicode-segmentation."1.10.0" { inherit profileName; };
@@ -1656,6 +1657,22 @@ in
     version = "0.5.2";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
     src = fetchCratesIo { inherit name version; sha256 = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"; };
+  });
+  
+  "registry+https://github.com/rust-lang/crates.io-index".stop-words."0.7.0" = overridableMkRustCrate (profileName: rec {
+    name = "stop-words";
+    version = "0.7.0";
+    registry = "registry+https://github.com/rust-lang/crates.io-index";
+    src = fetchCratesIo { inherit name version; sha256 = "b251c7ff1e2170ea6b8437da108af444194381dd658c738d763c4ead03acd88d"; };
+    features = builtins.concatLists [
+      [ "default" ]
+      [ "iso" ]
+      [ "nltk" ]
+      [ "serde_json" ]
+    ];
+    dependencies = {
+      serde_json = rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde_json."1.0.87" { inherit profileName; };
+    };
   });
   
   "registry+https://github.com/rust-lang/crates.io-index".strsim."0.8.0" = overridableMkRustCrate (profileName: rec {
