@@ -18,3 +18,7 @@ stop-words = { version = "0.7", features = [ "nltk" ] }
 
 [profile.dev.package."*"]
 opt-level = 3
+
+[package.metadata.nix]
+build = true
+app = true
