@@ -31,6 +31,8 @@
         };
       };
       pkgConfig = common: {
+        dream2nixSettings =
+          [ { aggregate = false; } { translator = "cargo-lock"; } ];
         ironoxide-cli = {
           overrides.fix-build.overrideAttrs = prev: {
             buildInputs = nci.lib.nci-lib.addBuildInputs prev [ ]
