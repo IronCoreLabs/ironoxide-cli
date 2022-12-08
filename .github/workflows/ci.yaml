@@ -26,7 +26,7 @@ jobs:
       - name: Install Cachix
         uses: cachix/cachix-action@v10
         with:
-          name: ironoxide-cli
+          name: ironcorelabs-ironoxide-cli
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Check that workflows are up to date
         run: 'nix build --print-build-logs --no-link .#ci'
