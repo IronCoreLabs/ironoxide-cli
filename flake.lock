@@ -1,0 +1,99 @@
+{
+  "nodes": {
+    "flake-utils": {
+      "locked": {
+        "lastModified": 1676283394,
+        "narHash": "sha256-XX2f9c3iySLCw54rJ/CZs+ZK6IQy7GXNY4nSOyu2QG4=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "3db36a8b464d0c4532ba1c7dda728f4576d6d073",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "flake-utils_2": {
+      "locked": {
+        "lastModified": 1659877975,
+        "narHash": "sha256-zllb8aq3YO3h8B/U0/J1WBgAL8EX5yWf5pMj3G0NAmc=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "c0e246b9b83f637f4681389ecabcb2681b4f3af0",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1678231879,
+        "narHash": "sha256-mzMQf5D5LzvgBJCT1MsyH1qoS8XgMsFvZ38oLAi7Pw8=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "f5eaf06bd9cd0d0aaf848dafcc8b3ad53e34e02b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nocargo": {
+      "inputs": {
+        "flake-utils": "flake-utils_2",
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "registry-crates-io": [
+          "registry-crates-io"
+        ]
+      },
+      "locked": {
+        "lastModified": 1675415166,
+        "narHash": "sha256-1clfHe3aVYpLik/YKnx8Yc5Z0ri6QdpeXxm4F5I5aJs=",
+        "owner": "oxalica",
+        "repo": "nocargo",
+        "rev": "43c6f9e71372283285c11eaaa79905570a65f1cc",
+        "type": "github"
+      },
+      "original": {
+        "owner": "oxalica",
+        "repo": "nocargo",
+        "type": "github"
+      }
+    },
+    "registry-crates-io": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1678232343,
+        "narHash": "sha256-AYcUWpO48ouaUh57xcQ7962ZunvjHbK1cGgWILZtfN4=",
+        "owner": "rust-lang",
+        "repo": "crates.io-index",
+        "rev": "acdc49966f17751d74b9b9021f03891daf4ea0c3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "rust-lang",
+        "repo": "crates.io-index",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "flake-utils": "flake-utils",
+        "nixpkgs": "nixpkgs",
+        "nocargo": "nocargo",
+        "registry-crates-io": "registry-crates-io"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
