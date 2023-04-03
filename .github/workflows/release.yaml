@@ -16,6 +16,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
+      - uses: IronCoreLabs/rust-toolchain@v1
       - name: Build
         run: cargo build --release
       - name: Package release artifacts
