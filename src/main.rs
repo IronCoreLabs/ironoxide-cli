@@ -320,7 +320,7 @@ async fn encrypt_bytes_to_file(
         .collect::<Vec<_>>();
     println!("Successfully encrypted file to: {:#?}", successes);
     println!("Failed to encrypt file to: {:#?}", failures);
-    std::fs::write(&output_path, encrypt_result.encrypted_data())?;
+    std::fs::write(output_path, encrypt_result.encrypted_data())?;
     println!("Output encrypted file to \"{}\"", output_path.display());
     Ok(())
 }
@@ -426,7 +426,7 @@ async fn modify_group(
 
 async fn initialize_sdk_from_file(device_path: &PathBuf) -> Result<IronOxide> {
     if device_path.is_file() {
-        let device_context_file = File::open(&device_path)?;
+        let device_context_file = File::open(device_path)?;
         let device_context: DeviceContext = serde_json::from_reader(device_context_file)?;
         println!("Found DeviceContext in \"{}\"", device_path.display());
         Ok(ironoxide::initialize(&device_context, &Default::default()).await?)
