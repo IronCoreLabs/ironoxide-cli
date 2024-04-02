@@ -54,7 +54,7 @@ jobs:
           name: release-ubuntu-22.04
           path: release/ubuntu-22.04
       - name: Delete artifact
-        uses: geekyeggo/delete-artifact@v4
+        uses: geekyeggo/delete-artifact@v5
         with:
           name: release-ubuntu-22.04
           failOnError: false
@@ -73,7 +73,7 @@ jobs:
           name: release-macos-11
           path: release/macos-11
       - name: Delete artifact
-        uses: geekyeggo/delete-artifact@v4
+        uses: geekyeggo/delete-artifact@v5
         with:
           name: release-macos-11
           failOnError: false
@@ -92,7 +92,7 @@ jobs:
           name: release-windows-2019
           path: release/windows-2019
       - name: Delete artifact
-        uses: geekyeggo/delete-artifact@v4
+        uses: geekyeggo/delete-artifact@v5
         with:
           name: release-windows-2019
           failOnError: false
