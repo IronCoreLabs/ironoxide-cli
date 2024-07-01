@@ -9,7 +9,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-22.04, macos-11, windows-2019]
+        os: [ubuntu-22.04, macos-12, windows-2019]
         include:
           - os: windows-2019
             ext: .exe
@@ -67,22 +67,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download release artifacts from macos-11
+      - name: Download release artifacts from macos-12
         uses: actions/download-artifact@v4
         with:
-          name: release-macos-11
-          path: release/macos-11
+          name: release-macos-12
+          path: release/macos-12
       - name: Delete artifact
         uses: geekyeggo/delete-artifact@v5
         with:
-          name: release-macos-11
+          name: release-macos-12
           failOnError: false
-      - name: Sign artifact for macos-11
+      - name: Sign artifact for macos-12
         run: |
-          gpg --batch --detach-sign -a release/macos-11/ironoxide-cli-macos-11
-          gpg --batch --verify release/macos-11/ironoxide-cli-macos-11.asc release/macos-11/ironoxide-cli-macos-11
-      - name: Upload artifact for macos-11
-        run: gh release upload ${{ github.ref }} release/macos-11/ironoxide-cli-macos-11 release/macos-11/ironoxide-cli-macos-11.asc --clobber
+          gpg --batch --detach-sign -a release/macos-12/ironoxide-cli-macos-12
+          gpg --batch --verify release/macos-12/ironoxide-cli-macos-12.asc release/macos-12/ironoxide-cli-macos-12
+      - name: Upload artifact for macos-12
+        run: gh release upload ${{ github.ref }} release/macos-12/ironoxide-cli-macos-12 release/macos-12/ironoxide-cli-macos-12.asc --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
