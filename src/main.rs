@@ -403,12 +403,15 @@ async fn modify_group(
 ) -> Result<()> {
     let sdk = initialize_sdk_from_file(device_path).await?;
     let modify_result = match modification_function {
-        GroupModificationFunction::AddAdmins => sdk.group_add_admins(group_id, user_ids),
-        GroupModificationFunction::RemoveAdmins => sdk.group_remove_admins(group_id, user_ids),
-        GroupModificationFunction::AddMembers => sdk.group_add_members(group_id, user_ids),
-        GroupModificationFunction::RemoveMembers => sdk.group_remove_members(group_id, user_ids),
-    }
-    .await?;
+        GroupModificationFunction::AddAdmins => sdk.group_add_admins(group_id, user_ids).await,
+        GroupModificationFunction::RemoveAdmins => {
+            sdk.group_remove_admins(group_id, user_ids).await
+        }
+        GroupModificationFunction::AddMembers => sdk.group_add_members(group_id, user_ids).await,
+        GroupModificationFunction::RemoveMembers => {
+            sdk.group_remove_members(group_id, user_ids).await
+        }
+    }?;
     let successes = modify_result
         .succeeded()
         .iter()
