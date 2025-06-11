@@ -22,9 +22,7 @@
             src = ./.;
             cargoLock.lockFile = ./Cargo.lock;
             nativeBuildInputs = [ pkgs.pkg-config ];
-            buildInputs = [ rusttoolchain pkgs.libiconv ]
-              ++ pkgs.lib.optionals pkgs.stdenv.isDarwin
-              [ pkgs.darwin.apple_sdk.frameworks.SystemConfiguration ];
+            buildInputs = [ rusttoolchain pkgs.libiconv ];
           };
         };
         defaultPackage = packages.ironoxide-cli;
@@ -32,9 +30,7 @@
         # nix develop
         devShell = pkgs.mkShell {
           buildInputs = with pkgs;
-            [ rusttoolchain pkg-config pkgs.libiconv pkgs.prometheus ]
-            ++ pkgs.lib.optionals pkgs.stdenv.isDarwin
-            [ pkgs.darwin.apple_sdk.frameworks.SystemConfiguration ];
+            [ rusttoolchain pkg-config pkgs.libiconv pkgs.prometheus ];
         };
 
       });
