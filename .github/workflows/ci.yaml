@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: main
+    branches:
+      - main
   pull_request:
 
 jobs:
@@ -11,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-14, windows-2019]
+        os: [ubuntu-24.04, macos-14, windows-2025]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/cache@v4
@@ -26,7 +27,7 @@ jobs:
         run: cargo test
 
   cargo-fmt:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: IronCoreLabs/rust-toolchain@v1

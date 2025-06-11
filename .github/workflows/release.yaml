@@ -9,9 +9,9 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-22.04, macos-14, windows-2019]
+        os: [ubuntu-24.04, macos-14, windows-2025]
         include:
-          - os: windows-2019
+          - os: windows-2025
             ext: .exe
     runs-on: ${{ matrix.os }}
     steps:
@@ -29,12 +29,12 @@ jobs:
           path: target/release/ironoxide-cli-${{ matrix.os }}${{ matrix.ext }}
 
   release:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: build
     steps:
       - uses: actions/checkout@v4
       - name: Decrypt PGP key
-        uses: IronCoreLabs/ironhide-actions/decrypt@v2
+        uses: IronCoreLabs/ironhide-actions/decrypt@v3
         with:
           keys: ${{ secrets.IRONHIDE_KEYS }}
           input: .github/signing-key.asc.iron
@@ -48,22 +48,22 @@ jobs:
           tag_name: ${{ github.ref }}
           release_name: Version ${{ github.ref }}
 
-      - name: Download release artifacts from ubuntu-22.04
+      - name: Download release artifacts from ubuntu-24.04
         uses: actions/download-artifact@v4
         with:
-          name: release-ubuntu-22.04
-          path: release/ubuntu-22.04
+          name: release-ubuntu-24.04
+          path: release/ubuntu-24.04
       - name: Delete artifact
         uses: geekyeggo/delete-artifact@v5
         with:
-          name: release-ubuntu-22.04
+          name: release-ubuntu-24.04
           failOnError: false
-      - name: Sign artifact for ubuntu-22.04
+      - name: Sign artifact for ubuntu-24.04
         run: |
-          gpg --batch --detach-sign -a release/ubuntu-22.04/ironoxide-cli-ubuntu-22.04
-          gpg --batch --verify release/ubuntu-22.04/ironoxide-cli-ubuntu-22.04.asc release/ubuntu-22.04/ironoxide-cli-ubuntu-22.04
-      - name: Upload artifact for ubuntu-22.04
-        run: gh release upload ${{ github.ref }} release/ubuntu-22.04/ironoxide-cli-ubuntu-22.04 release/ubuntu-22.04/ironoxide-cli-ubuntu-22.04.asc --clobber
+          gpg --batch --detach-sign -a release/ubuntu-24.04/ironoxide-cli-ubuntu-24.04
+          gpg --batch --verify release/ubuntu-24.04/ironoxide-cli-ubuntu-24.04.asc release/ubuntu-24.04/ironoxide-cli-ubuntu-24.04
+      - name: Upload artifact for ubuntu-24.04
+        run: gh release upload ${{ github.ref }} release/ubuntu-24.04/ironoxide-cli-ubuntu-24.04 release/ubuntu-24.04/ironoxide-cli-ubuntu-24.04.asc --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -86,21 +86,21 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download release artifacts from windows-2019
+      - name: Download release artifacts from windows-2025
         uses: actions/download-artifact@v4
         with:
-          name: release-windows-2019
-          path: release/windows-2019
+          name: release-windows-2025
+          path: release/windows-2025
       - name: Delete artifact
         uses: geekyeggo/delete-artifact@v5
         with:
-          name: release-windows-2019
+          name: release-windows-2025
           failOnError: false
-      - name: Sign artifact for windows-2019
+      - name: Sign artifact for windows-2025
         run: |
-          gpg --batch --detach-sign -a release/windows-2019/ironoxide-cli-windows-2019.exe
-          gpg --batch --verify release/windows-2019/ironoxide-cli-windows-2019.exe.asc release/windows-2019/ironoxide-cli-windows-2019.exe
-      - name: Upload artifact for windows-2019
-        run: gh release upload ${{ github.ref }} release/windows-2019/ironoxide-cli-windows-2019.exe release/windows-2019/ironoxide-cli-windows-2019.exe.asc --clobber
+          gpg --batch --detach-sign -a release/windows-2025/ironoxide-cli-windows-2025.exe
+          gpg --batch --verify release/windows-2025/ironoxide-cli-windows-2025.exe.asc release/windows-2025/ironoxide-cli-windows-2025.exe
+      - name: Upload artifact for windows-2025
+        run: gh release upload ${{ github.ref }} release/windows-2025/ironoxide-cli-windows-2025.exe release/windows-2025/ironoxide-cli-windows-2025.exe.asc --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
