@@ -63,7 +63,7 @@ jobs:
           gpg --batch --detach-sign -a release/ubuntu-24.04/ironoxide-cli-ubuntu-24.04
           gpg --batch --verify release/ubuntu-24.04/ironoxide-cli-ubuntu-24.04.asc release/ubuntu-24.04/ironoxide-cli-ubuntu-24.04
       - name: Upload artifact for ubuntu-24.04
-        run: gh release upload ${{ github.ref }} release/ubuntu-24.04/ironoxide-cli-ubuntu-24.04 release/ubuntu-24.04/ironoxide-cli-ubuntu-24.04.asc --clobber
+        run: gh release upload ${{ github.ref_name }} release/ubuntu-24.04/ironoxide-cli-ubuntu-24.04 release/ubuntu-24.04/ironoxide-cli-ubuntu-24.04.asc --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -82,7 +82,7 @@ jobs:
           gpg --batch --detach-sign -a release/macos-14/ironoxide-cli-macos-14
           gpg --batch --verify release/macos-14/ironoxide-cli-macos-14.asc release/macos-14/ironoxide-cli-macos-14
       - name: Upload artifact for macos-14
-        run: gh release upload ${{ github.ref }} release/macos-14/ironoxide-cli-macos-14 release/macos-14/ironoxide-cli-macos-14.asc --clobber
+        run: gh release upload ${{ github.ref_name }} release/macos-14/ironoxide-cli-macos-14 release/macos-14/ironoxide-cli-macos-14.asc --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -101,6 +101,6 @@ jobs:
           gpg --batch --detach-sign -a release/windows-2025/ironoxide-cli-windows-2025.exe
           gpg --batch --verify release/windows-2025/ironoxide-cli-windows-2025.exe.asc release/windows-2025/ironoxide-cli-windows-2025.exe
       - name: Upload artifact for windows-2025
-        run: gh release upload ${{ github.ref }} release/windows-2025/ironoxide-cli-windows-2025.exe release/windows-2025/ironoxide-cli-windows-2025.exe.asc --clobber
+        run: gh release upload ${{ github.ref_name }} release/windows-2025/ironoxide-cli-windows-2025.exe release/windows-2025/ironoxide-cli-windows-2025.exe.asc --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
