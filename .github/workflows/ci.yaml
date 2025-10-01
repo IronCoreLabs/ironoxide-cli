@@ -14,7 +14,7 @@ jobs:
       matrix:
         os: [ubuntu-24.04, macos-14, windows-2025]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/cache@v4
         with:
           path: |
@@ -29,7 +29,7 @@ jobs:
   cargo-fmt:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: IronCoreLabs/rust-toolchain@v1
         with:
           components: rustfmt

@@ -15,7 +15,7 @@ jobs:
             ext: .exe
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: IronCoreLabs/rust-toolchain@v1
       - name: Build
         run: cargo build --release
@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: build
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Decrypt PGP key
         uses: IronCoreLabs/ironhide-actions/decrypt@v3
         with:
