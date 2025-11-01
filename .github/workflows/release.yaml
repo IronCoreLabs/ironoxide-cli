@@ -49,7 +49,7 @@ jobs:
           release_name: Version ${{ github.ref }}
 
       - name: Download release artifacts from ubuntu-24.04
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: release-ubuntu-24.04
           path: release/ubuntu-24.04
@@ -68,7 +68,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download release artifacts from macos-14
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: release-macos-14
           path: release/macos-14
@@ -87,7 +87,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download release artifacts from windows-2025
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: release-windows-2025
           path: release/windows-2025
