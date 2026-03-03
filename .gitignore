@@ -1,3 +1,4 @@
 /target
 /*.pem
 /*.json
+.github/signing-key.asc
