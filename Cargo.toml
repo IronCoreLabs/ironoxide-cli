@@ -3,7 +3,7 @@ name = "ironoxide-cli"
 version = "0.2.0"
 authors = ["IronCore Labs <info@ironcorelabs.com>"]
 edition = "2024"
-rust-version = "1.85.0"
+rust-version = "1.88.0"
 
 [dependencies]
 ironoxide = { version = "4", default-features = false, features = [

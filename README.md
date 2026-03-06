@@ -94,6 +94,18 @@ will also be granted access to the file. By default, the encrypted file will be 
 The `file-decrypt` subcommand is used to decrypt a file that the calling user has been granted access to. By default, the
 decrypted file will be output with the `.iron` extension removed.
 
+#### file-encrypt-unmanaged
+
+The `file-encrypt-unmanaged` subcommand encrypts a file without storing document metadata or EDEKs in IronCore's service.
+This produces two output files: the encrypted data (`.iron`) and the encrypted document encryption keys (`.iron.edeks`).
+Both files are required for decryption. The calling user will also be granted access to the file.
+
+#### file-decrypt-unmanaged
+
+The `file-decrypt-unmanaged` subcommand decrypts a file that was encrypted with `file-encrypt-unmanaged`. It requires both
+the encrypted data file and the EDEKs file. By default, the EDEKs file is expected at `<filename>.edeks` and the decrypted
+output will have the `.iron` extension removed.
+
 ## Examples
 
 ```console
@@ -135,6 +147,23 @@ Output encrypted file to "keys.json.iron"
 
 $ ironoxide-cli file-decrypt keys.json.iron --device ironadmin.json
 Read in file "keys.json.iron"
+Found DeviceContext in "ironadmin.json"
+Output decrypted file to "keys.json"
+
+$ ironoxide-cli file-encrypt-unmanaged keys.json --groups employees --device ironadmin.json
+Read in file "keys.json"
+Found DeviceContext in "ironadmin.json"
+Successfully encrypted file to: [
+    "User: ironadmin",
+    "Group: employees",
+]
+Failed to encrypt file to: []
+Output encrypted file to "keys.json.iron"
+Output EDEKs to "keys.json.iron.edeks"
+
+$ ironoxide-cli file-decrypt-unmanaged keys.json.iron --device ironadmin.json
+Read in file "keys.json.iron"
+Read in EDEKs from "keys.json.iron.edeks"
 Found DeviceContext in "ironadmin.json"
 Output decrypted file to "keys.json"
 ```

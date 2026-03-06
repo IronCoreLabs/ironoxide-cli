@@ -2,7 +2,6 @@ use ironoxide::prelude::*;
 use jsonwebtoken::{Algorithm, EncodingKey, Header};
 use serde::Deserialize;
 use std::{
-    convert::TryFrom,
     fmt,
     fs::File,
     path::{Path, PathBuf},
@@ -118,6 +117,43 @@ enum CommandLineArgs {
         /// Path to the calling user's device context
         #[structopt(short, long = "device")]
         device_path: PathBuf,
+        /// Decrypted output file to write [default: "<filename> - .iron"]
+        #[structopt(short, long)]
+        output: Option<PathBuf>,
+    },
+    /// Encrypt a file to given users and groups without storing keys in IronCore's service.
+    /// Produces two output files: encrypted data (.iron) and EDEKs (.iron.edeks).
+    /// The calling user will automatically be added to the grants list.
+    FileEncryptUnmanaged {
+        /// Path to the file to encrypt
+        filename: PathBuf,
+        /// Path to the calling user's device context
+        #[structopt(short, long = "device")]
+        device_path: PathBuf,
+        /// Users who will be granted access to the document
+        #[structopt(short, long, parse(try_from_str = parse_user_id))]
+        users: Vec<UserId>,
+        /// Groups that will be granted access to the document
+        #[structopt(short, long, parse(try_from_str = parse_group_id))]
+        groups: Vec<GroupId>,
+        /// Encrypted output file to write [default: "<filename>.iron"]
+        #[structopt(short, long)]
+        output: Option<PathBuf>,
+        /// EDEKs output file to write [default: "<output>.edeks"]
+        #[structopt(short, long)]
+        edeks: Option<PathBuf>,
+    },
+    /// Decrypt a file using unmanaged decryption. Requires both the encrypted data file
+    /// and the EDEKs file.
+    FileDecryptUnmanaged {
+        /// Path to the encrypted file to decrypt
+        filename: PathBuf,
+        /// Path to the calling user's device context
+        #[structopt(short, long = "device")]
+        device_path: PathBuf,
+        /// Path to the EDEKs file [default: "<filename>.edeks"]
+        #[structopt(short, long)]
+        edeks: Option<PathBuf>,
         /// Decrypted output file to write [default: "<filename> - .iron"]
         #[structopt(short, long)]
         output: Option<PathBuf>,
@@ -287,6 +323,46 @@ async fn main() -> Result<()> {
             std::fs::write(&output, decrypt_result.decrypted_data())?;
             println!("Output decrypted file to \"{}\"", output.display());
         }
+        CommandLineArgs::FileEncryptUnmanaged {
+            filename: infile,
+            device_path,
+            users,
+            groups,
+            output: maybe_output,
+            edeks: maybe_edeks,
+        } => {
+            let file = std::fs::read(&infile)?;
+            println!("Read in file \"{}\"", infile.display());
+            let output = validate_encrypt_output_path(maybe_output, &infile)?;
+            let edeks_path = resolve_edeks_path(maybe_edeks, &output);
+            let users_or_groups = collect_users_and_groups(&users, &groups);
+            let sdk = initialize_sdk_from_file(&device_path).await?;
+            encrypt_bytes_to_file_unmanaged(sdk, file, &users_or_groups, &output, &edeks_path)
+                .await?;
+        }
+        CommandLineArgs::FileDecryptUnmanaged {
+            filename: infile,
+            device_path,
+            edeks: maybe_edeks,
+            output: maybe_output,
+        } => {
+            let file = std::fs::read(&infile)?;
+            println!("Read in file \"{}\"", infile.display());
+            let edeks_path = resolve_edeks_path(maybe_edeks, &infile);
+            let edeks = std::fs::read(&edeks_path).map_err(|e| {
+                InitAppErr(format!(
+                    "Failed to read EDEKs file \"{}\": {}",
+                    edeks_path.display(),
+                    e
+                ))
+            })?;
+            println!("Read in EDEKs from \"{}\"", edeks_path.display());
+            let output = validate_decrypt_output_path(maybe_output, infile)?;
+            let sdk = initialize_sdk_from_file(&device_path).await?;
+            let decrypt_result = sdk.document_decrypt_unmanaged(&file, &edeks).await?;
+            std::fs::write(&output, decrypt_result.decrypted_data())?;
+            println!("Output decrypted file to \"{}\"", output.display());
+        }
     }
     Ok(())
 }
@@ -297,32 +373,59 @@ async fn encrypt_bytes_to_file(
     sdk: IronOxide,
     file: Vec<u8>,
     users_or_groups: &[UserOrGroup],
-    output_path: &PathBuf,
+    output_path: &Path,
 ) -> Result<()> {
     let opts =
         DocumentEncryptOpts::with_explicit_grants(None, None, true, users_or_groups.to_vec());
     let encrypt_result = sdk.document_encrypt(file, &opts).await?;
-    let successes = encrypt_result
-        .grants()
+    print_encrypt_results(encrypt_result.grants(), encrypt_result.access_errs());
+    std::fs::write(output_path, encrypt_result.encrypted_data())?;
+    println!("Output encrypted file to \"{}\"", output_path.display());
+    Ok(())
+}
+
+/// Encrypt the provided file using unmanaged encryption. Writes encrypted data to `output_path`
+/// and EDEKs to `edeks_path`. The caller must manage both files for later decryption.
+async fn encrypt_bytes_to_file_unmanaged(
+    sdk: IronOxide,
+    file: Vec<u8>,
+    users_or_groups: &[UserOrGroup],
+    output_path: &Path,
+    edeks_path: &Path,
+) -> Result<()> {
+    let opts =
+        DocumentEncryptOpts::with_explicit_grants(None, None, true, users_or_groups.to_vec());
+    let encrypt_result = sdk.document_encrypt_unmanaged(file, &opts).await?;
+    print_encrypt_results(encrypt_result.grants(), encrypt_result.access_errs());
+    std::fs::write(edeks_path, encrypt_result.encrypted_deks())?;
+    println!("Output EDEKs to \"{}\"", edeks_path.display());
+    std::fs::write(output_path, encrypt_result.encrypted_data())?;
+    println!("Output encrypted file to \"{}\"", output_path.display());
+    Ok(())
+}
+
+/// Print the grant successes and failures from an encrypt operation.
+fn print_encrypt_results(grants: &[UserOrGroup], access_errs: &[DocAccessEditErr]) {
+    let successes = grants
         .iter()
         .map(|u_or_g| match u_or_g {
             UserOrGroup::User { id } => format!("User: {}", id.id()),
             UserOrGroup::Group { id } => format!("Group: {}", id.id()),
         })
         .collect::<Vec<_>>();
-    let failures = encrypt_result
-        .access_errs()
+    let failures = access_errs
         .iter()
         .map(|edit_err| match &edit_err.user_or_group {
             UserOrGroup::User { id } => format!("User: {}, Error: {}", id.id(), edit_err.err),
             UserOrGroup::Group { id } => format!("Group: {}, Error: {}", id.id(), edit_err.err),
         })
         .collect::<Vec<_>>();
-    println!("Successfully encrypted file to: {:#?}", successes);
-    println!("Failed to encrypt file to: {:#?}", failures);
-    std::fs::write(output_path, encrypt_result.encrypted_data())?;
-    println!("Output encrypted file to \"{}\"", output_path.display());
-    Ok(())
+    if !successes.is_empty() {
+        println!("Successfully encrypted file to: {:#?}", successes);
+    }
+    if !failures.is_empty() {
+        println!("Failed to encrypt file to: {:#?}", failures);
+    }
 }
 
 /// Collect a vector of `UserId` and a vector of `GroupId` into a vector of `UserOrGroup`.
@@ -383,9 +486,22 @@ fn validate_encrypt_output_path(maybe_output: Option<PathBuf>, infile: &Path) ->
             }
         }
         // User didn't specify an output path. Add ".iron" to the input path.
-        None => PathBuf::from(infile.display().to_string() + ".iron"),
+        None => append_to_path(infile, ".iron"),
     };
     Ok(output)
+}
+
+/// Append a suffix to a path, preserving non-UTF8 components.
+fn append_to_path(path: &Path, suffix: &str) -> PathBuf {
+    let mut s = path.as_os_str().to_os_string();
+    s.push(suffix);
+    PathBuf::from(s)
+}
+
+/// Resolve the EDEKs file path. If an explicit path is provided, use it.
+/// Otherwise, append ".edeks" to the data file path.
+fn resolve_edeks_path(maybe_edeks: Option<PathBuf>, data_file: &Path) -> PathBuf {
+    maybe_edeks.unwrap_or_else(|| append_to_path(data_file, ".edeks"))
 }
 
 enum GroupModificationFunction {
@@ -398,7 +514,7 @@ enum GroupModificationFunction {
 async fn modify_group(
     group_id: &GroupId,
     user_ids: &[UserId],
-    device_path: &PathBuf,
+    device_path: &Path,
     modification_function: GroupModificationFunction,
 ) -> Result<()> {
     let sdk = initialize_sdk_from_file(device_path).await?;
@@ -427,7 +543,7 @@ async fn modify_group(
     Ok(())
 }
 
-async fn initialize_sdk_from_file(device_path: &PathBuf) -> Result<IronOxide> {
+async fn initialize_sdk_from_file(device_path: &Path) -> Result<IronOxide> {
     if device_path.is_file() {
         let device_context_file = File::open(device_path)?;
         let device_context: DeviceContext = serde_json::from_reader(device_context_file)?;
@@ -501,7 +617,7 @@ impl fmt::Debug for InitAppErr {
 
 async fn create_user_and_device(
     cfg: &InputConfig,
-    path_to_pem: &PathBuf,
+    path_to_pem: &Path,
     user_id: &UserId,
     password: &Password,
 ) -> Result<DeviceContext> {
@@ -549,7 +665,7 @@ struct UserCreate<'a> {
     project_id: &'a ProjectId,
     seg_id: &'a SegmentId,
     iak: &'a IdentityAssertionKeyId,
-    pem_file: &'a PathBuf,
+    pem_file: &'a Path,
     user_id: &'a UserId,
 }
 
@@ -708,5 +824,27 @@ mod tests {
         let users_or_groups = collect_users_and_groups(&[], &[]);
         let expected = vec![];
         assert_eq!(users_or_groups, expected);
+    }
+
+    #[test]
+    fn resolve_edeks_with_explicit_path() {
+        let explicit = Some(PathBuf::from("my_edeks.bin"));
+        let data_file = Path::new("data.iron");
+        let result = resolve_edeks_path(explicit, data_file);
+        assert_eq!(result, PathBuf::from("my_edeks.bin"));
+    }
+
+    #[test]
+    fn resolve_edeks_inferred_from_data_file() {
+        let data_file = Path::new("secret.iron");
+        let result = resolve_edeks_path(None, data_file);
+        assert_eq!(result, PathBuf::from("secret.iron.edeks"));
+    }
+
+    #[test]
+    fn resolve_edeks_inferred_with_nested_path() {
+        let data_file = Path::new("path/to/secret.iron");
+        let result = resolve_edeks_path(None, data_file);
+        assert_eq!(result, PathBuf::from("path/to/secret.iron.edeks"));
     }
 }
