@@ -2,3 +2,4 @@
 /*.pem
 /*.json
 .github/signing-key.asc
+.direnv
