@@ -94,7 +94,7 @@ enum CommandLineArgs {
         device_path: PathBuf,
     },
     /// Remove a group the user is an admin of
-    GroupDelete{
+    GroupDelete {
         /// Space-separated list of groups to remove
         #[structopt(required = true, parse(try_from_str = parse_group_id))]
         group_ids: Vec<GroupId>,
