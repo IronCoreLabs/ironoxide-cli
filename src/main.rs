@@ -93,6 +93,15 @@ enum CommandLineArgs {
         /// Path to the calling user's device context
         device_path: PathBuf,
     },
+    /// Delete a group the user is an admin of
+    GroupDelete {
+        /// Space-separated list of groups to delete
+        #[structopt(required = true, parse(try_from_str = parse_group_id))]
+        group_ids: Vec<GroupId>,
+        /// Path to the calling user's device context
+        #[structopt(short, long = "device")]
+        device_path: PathBuf,
+    },
     /// Encrypt a file to given users and groups. The calling user will automatically be added to the grants list.
     FileEncrypt {
         /// Path to the file to encrypt
@@ -295,6 +304,16 @@ async fn main() -> Result<()> {
                 .map(|meta_result| meta_result.id().id())
                 .collect::<Vec<_>>();
             println!("Groups found: {:?}", group_ids)
+        }
+        CommandLineArgs::GroupDelete {
+            group_ids,
+            device_path,
+        } => {
+            let sdk = initialize_sdk_from_file(&device_path).await?;
+            let group_futures = group_ids
+                .iter()
+                .map(|group_id| delete_group(&sdk, group_id));
+            futures::future::try_join_all(group_futures).await?;
         }
         CommandLineArgs::FileEncrypt {
             filename: infile,
@@ -655,6 +674,16 @@ async fn create_group(sdk: &IronOxide, group_id: &GroupId) -> Result<()> {
     sdk.group_create(&opts).await?;
     println!(
         "Generating group \"{}\" for user \"{}\"",
+        group_id.id(),
+        sdk.device().account_id().id()
+    );
+    Ok(())
+}
+
+async fn delete_group(sdk: &IronOxide, group_id: &GroupId) -> Result<()> {
+    sdk.group_delete(&group_id).await?;
+    println!(
+        "Deleting group \"{}\" for user \"{}\"",
         group_id.id(),
         sdk.device().account_id().id()
     );
