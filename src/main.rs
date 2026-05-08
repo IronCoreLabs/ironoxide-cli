@@ -28,7 +28,7 @@ enum CommandLineArgs {
         #[structopt(default_value = "assertionKey.pem", short, long = "iak")]
         iak_file_path: PathBuf,
         /// Where to output the device context [default: <user_id>.json]
-        #[structopt(short, long = "out")]
+        #[structopt(short, long = "output")]
         output_file_path: Option<PathBuf>,
     },
     /// Disable the calling user. A disabled user cannot perform SDK operations and
@@ -44,7 +44,7 @@ enum CommandLineArgs {
         #[structopt(parse(try_from_str = parse_user_id))]
         user_id: UserId,
         /// New status for the user: "enabled" or "disabled"
-        #[structopt(long, parse(try_from_str = parse_user_status))]
+        #[structopt(short, long, parse(try_from_str = parse_user_status))]
         status: UserStatus,
         /// Path to IronCore Config file
         #[structopt(default_value = "config.json", short, long = "config")]
@@ -113,6 +113,7 @@ enum CommandLineArgs {
     /// List the groups the user is a member/admin of
     GroupList {
         /// Path to the calling user's device context
+        #[structopt(short, long = "device")]
         device_path: PathBuf,
     },
     /// Delete a group the user is an admin of
@@ -148,7 +149,7 @@ enum CommandLineArgs {
         /// Path to the calling user's device context
         #[structopt(short, long = "device")]
         device_path: PathBuf,
-        /// Decrypted output file to write [default: "<filename> - .iron"]
+        /// Decrypted output file to write [default: "<filename without .iron>"]
         #[structopt(short, long)]
         output: Option<PathBuf>,
     },
@@ -185,7 +186,7 @@ enum CommandLineArgs {
         /// Path to the EDEKs file [default: "<filename>.edeks"]
         #[structopt(short, long)]
         edeks: Option<PathBuf>,
-        /// Decrypted output file to write [default: "<filename> - .iron"]
+        /// Decrypted output file to write [default: "<filename without .iron>"]
         #[structopt(short, long)]
         output: Option<PathBuf>,
     },
