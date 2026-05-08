@@ -43,8 +43,14 @@ enum CommandLineArgs {
         /// User whose status will be updated
         #[structopt(parse(try_from_str = parse_user_id))]
         user_id: UserId,
-        /// New status for the user: "enabled" or "disabled"
-        #[structopt(short, long, parse(try_from_str = parse_user_status))]
+        /// New status for the user
+        #[structopt(
+            short,
+            long,
+            possible_values = &["enabled", "disabled"],
+            case_insensitive = true,
+            parse(try_from_str = parse_user_status),
+        )]
         status: UserStatus,
         /// Path to IronCore Config file
         #[structopt(default_value = "config.json", short, long = "config")]
@@ -201,13 +207,13 @@ fn parse_group_id(group_id_string: &str) -> Result<GroupId> {
 fn parse_password(password_string: &str) -> Password {
     Password(password_string.to_string())
 }
+// Note that the strings map to `possible_values` in clap.
 fn parse_user_status(status_string: &str) -> Result<UserStatus> {
     match status_string.to_lowercase().as_str() {
-        "enabled" | "enable" => Ok(UserStatus::Enabled),
-        "disabled" | "disable" => Ok(UserStatus::Disabled),
-        _ => Err(InitAppErr(format!(
-            "Invalid status \"{status_string}\". Expected \"enabled\" or \"disabled\"."
-        ))),
+        "enabled" => Ok(UserStatus::Enabled),
+        "disabled" => Ok(UserStatus::Disabled),
+        // This actually can't be reached when called from clap, but I'll leave it in here just in case.
+        _ => Err(InitAppErr(format!("Invalid status \"{status_string}\"."))),
     }
 }
 
@@ -750,7 +756,7 @@ async fn create_group(sdk: &IronOxide, group_id: &GroupId) -> Result<()> {
 }
 
 async fn delete_group(sdk: &IronOxide, group_id: &GroupId) -> Result<()> {
-    sdk.group_delete(&group_id).await?;
+    sdk.group_delete(group_id).await?;
     println!(
         "Deleting group \"{}\" for user \"{}\"",
         group_id.id(),
