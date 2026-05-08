@@ -12,8 +12,6 @@
 
 - `user-create`: the long form of the device-output flag was renamed from `--out` to `--output`. Scripts that passed `--out <path>` must switch to `--output <path>`. The short form `-o` is unchanged.
 - `group-list`: the device context path is now passed via the `-d`/`--device` flag instead of as a positional argument, matching every other subcommand. Scripts that ran `ironoxide-cli group-list path/to/device.json` must switch to `ironoxide-cli group-list --device path/to/device.json`.
-- Status arguments now use clap's built-in possible values for validation and help output.
-- Internal cleanup of the config-loading path so user-creation and status-update share a single `load_config` helper.
 - Dependency updates.
 
 See git history for changes prior to 0.4.0.
