@@ -53,6 +53,18 @@ The `user-create` subcommand is used to create a user in the IronCore service, g
 and output the device context to a file. It requires the desired user's ID and password. The user's device context
 will be output to a file, which will be named "\<USER-ID\>.json" by default.
 
+#### user-disable-self
+
+The `user-disable-self` subcommand deactivates the calling user using their device context. A disabled user remains
+a member of any groups they belong to but cannot perform any further SDK operations until an admin re-enables them
+(for example, via `user-update-status`).
+
+#### user-update-status
+
+The `user-update-status` subcommand updates a user's status to either `enabled` or `disabled` using a JWT generated
+from the IronCore Config and Identity Assertion Key. Use this to re-enable a user that previously disabled themselves
+or to administratively disable a user without their device context.
+
 ### Group Commands
 
 #### group-create
@@ -81,6 +93,11 @@ The `group-remove-members` subcommand is used to remove members from a group.
 #### group-list
 
 The `group-list` subcommand is used to list all groups that the user is a member or administrator of.
+
+#### group-delete
+
+The `group-delete` subcommand is used to delete one or more groups that the calling user is an administrator of.
+This permanently removes the groups and revokes access for any documents that were encrypted to them.
 
 ### File Commands
 
@@ -113,6 +130,13 @@ $ ironoxide-cli user-create ironadmin --password foobar
 Creating user "ironadmin"
 Generating device for user "ironadmin"
 Outputting device context to "ironadmin.json"
+
+$ ironoxide-cli user-disable-self --device ironemployee.json
+Found DeviceContext in "ironemployee.json"
+Disabled user "ironemployee"
+
+$ ironoxide-cli user-update-status ironemployee --status enabled
+User "ironemployee" enabled
 
 $ ironoxide-cli group-create customers employees others --device ironadmin.json
 Found DeviceContext in "ironadmin.json"

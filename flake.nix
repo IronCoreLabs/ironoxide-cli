@@ -30,7 +30,7 @@
         # nix develop
         devShell = pkgs.mkShell {
           buildInputs = with pkgs;
-            [ rusttoolchain pkg-config pkgs.libiconv pkgs.prometheus ];
+            [ rusttoolchain pkg-config pkgs.libiconv ];
         };
 
       });

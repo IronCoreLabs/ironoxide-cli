@@ -28,8 +28,36 @@ enum CommandLineArgs {
         #[structopt(default_value = "assertionKey.pem", short, long = "iak")]
         iak_file_path: PathBuf,
         /// Where to output the device context [default: <user_id>.json]
-        #[structopt(short, long = "out")]
+        #[structopt(short, long = "output")]
         output_file_path: Option<PathBuf>,
+    },
+    /// Disable the calling user. A disabled user cannot perform SDK operations and
+    /// must be re-enabled by an admin (e.g. via `user-update-status`).
+    UserDisableSelf {
+        /// Path to the calling user's device context
+        #[structopt(short, long = "device")]
+        device_path: PathBuf,
+    },
+    /// Enable or disable a user via JWT-authenticated administrative call.
+    UserUpdateStatus {
+        /// User whose status will be updated
+        #[structopt(parse(try_from_str = parse_user_id))]
+        user_id: UserId,
+        /// New status for the user
+        #[structopt(
+            short,
+            long,
+            possible_values = &["enabled", "disabled"],
+            case_insensitive = true,
+            parse(try_from_str = parse_user_status),
+        )]
+        status: UserStatus,
+        /// Path to IronCore Config file
+        #[structopt(default_value = "config.json", short, long = "config")]
+        config_file_path: PathBuf,
+        /// Path to Identity Assertion Key
+        #[structopt(default_value = "assertionKey.pem", short, long = "iak")]
+        iak_file_path: PathBuf,
     },
     /// Create groups with the calling user as owner
     GroupCreate {
@@ -91,6 +119,7 @@ enum CommandLineArgs {
     /// List the groups the user is a member/admin of
     GroupList {
         /// Path to the calling user's device context
+        #[structopt(short, long = "device")]
         device_path: PathBuf,
     },
     /// Delete a group the user is an admin of
@@ -126,7 +155,7 @@ enum CommandLineArgs {
         /// Path to the calling user's device context
         #[structopt(short, long = "device")]
         device_path: PathBuf,
-        /// Decrypted output file to write [default: "<filename> - .iron"]
+        /// Decrypted output file to write [default: "<filename without .iron>"]
         #[structopt(short, long)]
         output: Option<PathBuf>,
     },
@@ -163,7 +192,7 @@ enum CommandLineArgs {
         /// Path to the EDEKs file [default: "<filename>.edeks"]
         #[structopt(short, long)]
         edeks: Option<PathBuf>,
-        /// Decrypted output file to write [default: "<filename> - .iron"]
+        /// Decrypted output file to write [default: "<filename without .iron>"]
         #[structopt(short, long)]
         output: Option<PathBuf>,
     },
@@ -178,6 +207,33 @@ fn parse_group_id(group_id_string: &str) -> Result<GroupId> {
 fn parse_password(password_string: &str) -> Password {
     Password(password_string.to_string())
 }
+// Note that the strings map to `possible_values` in clap.
+fn parse_user_status(status_string: &str) -> Result<UserStatus> {
+    match status_string.to_lowercase().as_str() {
+        "enabled" => Ok(UserStatus::Enabled),
+        "disabled" => Ok(UserStatus::Disabled),
+        // This actually can't be reached when called from clap, but I'll leave it in here just in case.
+        _ => Err(InitAppErr(format!("Invalid status \"{status_string}\"."))),
+    }
+}
+
+/// Validate that the IAK PEM file and config file both exist, then load and parse the config.
+fn load_config(iak_file_path: &Path, config_file_path: &Path) -> Result<InputConfig> {
+    if !iak_file_path.is_file() {
+        return Err(InitAppErr(format!(
+            "PEM file \"{}\" does not exist",
+            iak_file_path.display()
+        )));
+    }
+    if !config_file_path.is_file() {
+        return Err(InitAppErr(format!(
+            "Config file \"{}\" does not exist",
+            config_file_path.display()
+        )));
+    }
+    let config_file = File::open(config_file_path)?;
+    Ok(serde_json::from_reader(config_file)?)
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -190,22 +246,7 @@ async fn main() -> Result<()> {
             password,
             output_file_path: maybe_output_file_path,
         } => {
-            if !iak_file_path.is_file() {
-                Err(InitAppErr(format!(
-                    "PEM file \"{}\" does not exist",
-                    iak_file_path.display()
-                )))?;
-            }
-            if !config_file_path.is_file() {
-                Err(InitAppErr(format!(
-                    "Config file \"{}\" does not exist",
-                    config_file_path.display()
-                )))?;
-            }
-
-            let config_file = File::open(config_file_path)?;
-            let config: InputConfig = serde_json::from_reader(config_file)?;
-
+            let config = load_config(&iak_file_path, &config_file_path)?;
             let output_file_path = maybe_output_file_path
                 .unwrap_or_else(|| PathBuf::from(format!("{}.json", user_id.id())));
             if output_file_path.display().to_string().contains('/') {
@@ -228,6 +269,40 @@ async fn main() -> Result<()> {
                 "Outputting device context to \"{}\"",
                 output_file_path.display()
             );
+        }
+        CommandLineArgs::UserDisableSelf { device_path } => {
+            let sdk = initialize_sdk_from_file(&device_path).await?;
+            let user_id = sdk.device().account_id().clone();
+            sdk.user_disable_self().await?;
+            println!("Disabled user \"{}\"", user_id.id());
+        }
+        CommandLineArgs::UserUpdateStatus {
+            user_id,
+            status,
+            config_file_path,
+            iak_file_path,
+        } => {
+            let config = load_config(&iak_file_path, &config_file_path)?;
+            let user_create = UserCreate {
+                project_id: &config.project_id,
+                seg_id: &config.segment_id,
+                iak: &config.identity_assertion_key_id,
+                pem_file: &iak_file_path,
+                user_id: &user_id,
+            };
+            let jwt = gen_jwt(&user_create)?;
+            IronOxide::user_update_status(
+                &jwt,
+                status,
+                IronOxideConfig::default().sdk_operation_timeout,
+            )
+            .await?;
+            let status_label = match status {
+                UserStatus::Enabled => "enabled",
+                UserStatus::Disabled => "disabled",
+                _ => "updated",
+            };
+            println!("User '{}' {}", user_id.id(), status_label);
         }
         CommandLineArgs::GroupCreate {
             group_ids,
@@ -681,7 +756,7 @@ async fn create_group(sdk: &IronOxide, group_id: &GroupId) -> Result<()> {
 }
 
 async fn delete_group(sdk: &IronOxide, group_id: &GroupId) -> Result<()> {
-    sdk.group_delete(&group_id).await?;
+    sdk.group_delete(group_id).await?;
     println!(
         "Deleting group \"{}\" for user \"{}\"",
         group_id.id(),
