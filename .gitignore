@@ -3,3 +3,4 @@
 /*.json
 .github/signing-key.asc
 .direnv
+**/.DS_Store
