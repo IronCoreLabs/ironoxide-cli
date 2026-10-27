@@ -1140,7 +1140,7 @@ dependencies = [
 
 [[package]]
 name = "ironoxide-cli"
-version = "0.4.1-rc.10"
+version = "0.4.1-pre.11"
 dependencies = [
  "futures",
  "ironoxide",
