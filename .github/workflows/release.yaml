@@ -11,7 +11,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-24.04, macos-14, windows-2025]
+        os: [ubuntu-24.04, macos-26-intel, windows-2025]
         include:
           - os: windows-2025
             ext: .exe
@@ -62,22 +62,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download release artifacts from macos-14
+      - name: Download release artifacts from macos-26-intel
         uses: actions/download-artifact@v8
         with:
-          name: release-macos-14
-          path: release/macos-14
+          name: release-macos-26-intel
+          path: release/macos-26-intel
       - name: Delete artifact
         uses: geekyeggo/delete-artifact@v6
         with:
-          name: release-macos-14
+          name: release-macos-26-intel
           failOnError: false
-      - name: Sign artifact for macos-14
+      - name: Sign artifact for macos-26-intel
         run: |
-          gpg --batch --detach-sign -a release/macos-14/ironoxide-cli-macos-14
-          gpg --batch --verify release/macos-14/ironoxide-cli-macos-14.asc release/macos-14/ironoxide-cli-macos-14
-      - name: Upload artifact for macos-14
-        run: gh release upload ${{ github.ref_name }} release/macos-14/ironoxide-cli-macos-14 release/macos-14/ironoxide-cli-macos-14.asc --clobber
+          gpg --batch --detach-sign -a release/macos-26-intel/ironoxide-cli-macos-26-intel
+          gpg --batch --verify release/macos-26-intel/ironoxide-cli-macos-26-intel.asc release/macos-26-intel/ironoxide-cli-macos-26-intel
+      - name: Upload artifact for macos-26-intel
+        run: gh release upload ${{ github.ref_name }} release/macos-26-intel/ironoxide-cli-macos-26-intel release/macos-26-intel/ironoxide-cli-macos-26-intel.asc --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
